@@ -62,7 +62,7 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
-    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = SurvivalWalkSpeed;
 }
 
 void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -350,7 +350,7 @@ void ADeadlandsCharacter::CloseInventory()
 void ADeadlandsCharacter::ApplySprintSpeed()
 {
     if (GetCharacterMovement())
-        GetCharacterMovement()->MaxWalkSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+        GetCharacterMovement()->MaxWalkSpeed = bIsSprinting ? SurvivalSprintSpeed : SurvivalWalkSpeed;
 }
 
 void ADeadlandsCharacter::BeginSprint()
