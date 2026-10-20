@@ -36,6 +36,11 @@ void ADeadlandsZombie::BeginPlay()
     Super::BeginPlay();
     if (HasAuthority())
     {
+        // Two server-selected prototypes: common walkers and uncommon runners.
+        bFastVariant = FMath::FRand() < 0.25f;
+        WalkSpeed = bFastVariant ? 310.f : 180.f;
+        MaxHealth = bFastVariant ? 40.f : FMath::FRandRange(50.f, 80.f);
+        AttackDamage = bFastVariant ? 7.f : 10.f;
         Health = MaxHealth;
         HomeLocation = GetActorLocation();
         NextWanderTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
@@ -129,11 +134,46 @@ void ADeadlandsZombie::UpdatePassiveBehavior(float Now)
     }
 }
 
+void ADeadlandsZombie::HearCombatNoise(const FVector& NoiseLocation)
+{
+    if (!HasAuthority() || bDead || !GetWorld()) return;
+    if (FVector::DistSquared(GetActorLocation(), NoiseLocation) > FMath::Square(1300.f)) return;
+    if (CurrentTarget.IsValid()) return;
+    LastKnownLocation = NoiseLocation;
+    LastSensedTime = GetWorld()->GetTimeSeconds();
+    bSearching = false;
+    SetZombieState(EDeadlandsZombieState::Suspicious);
+}
+
+void ADeadlandsZombie::AlertFromZombie(const FVector& AlertLocation)
+{
+    if (!HasAuthority() || bDead || CurrentTarget.IsValid() || !GetWorld()) return;
+    if (FVector::DistSquared(GetActorLocation(), AlertLocation) > FMath::Square(900.f)) return;
+    LastKnownLocation = AlertLocation;
+    LastSensedTime = GetWorld()->GetTimeSeconds();
+    bSearching = false;
+    SetZombieState(EDeadlandsZombieState::Suspicious);
+}
+
+void ADeadlandsZombie::BroadcastAlert(const FVector& Location)
+{
+    if (!GetWorld()) return;
+    for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+    {
+        if (*It != this) It->AlertFromZombie(Location);
+    }
+}
+
 void ADeadlandsZombie::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     if (!HasAuthority() || bDead || !GetWorld()) return;
     const float Now = GetWorld()->GetTimeSeconds();
+    if (Now < StaggerEndTime)
+    {
+        if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
+        return;
+    }
 
     // Commit to an existing hunt for a short period instead of switching to any visible bystander.
     ADeadlandsCharacter* Target = CurrentTarget.Get();
@@ -183,6 +223,11 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
             LastSensedTime = Now;
             bSearching = false;
             GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+            if (Now >= NextAlertTime)
+            {
+                NextAlertTime = Now + 5.f;
+                BroadcastAlert(LastKnownLocation);
+            }
         }
     }
 
@@ -202,7 +247,37 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         return;
     }
 
-    // Attack only while currently sensing the victim; no damage through walls.
+    // Wind-up is interruptible. Revalidate the victim, reach, and line of sight
+    // at the instant damage lands so a player can escape around a corner.
+    if (bWindingUp)
+    {
+        ADeadlandsCharacter* Victim = WindupTarget.Get();
+        if (!IsValid(Victim) || Victim->GetHealth() <= 0.f ||
+            FVector::Dist(GetActorLocation(), Victim->GetActorLocation()) > AttackRange ||
+            !CanSeePlayer(Victim))
+        {
+            bWindingUp = false;
+            WindupTarget.Reset();
+        }
+        else if (Now >= AttackWindupEnd)
+        {
+            bWindingUp = false;
+            WindupTarget.Reset();
+            NextAttackTime = Now + AttackCooldown;
+            Victim->ApplyCombatDamage(AttackDamage);
+            FVector Push = Victim->GetActorLocation() - GetActorLocation();
+            Push.Z = 0.f;
+            Victim->LaunchCharacter(Push.GetSafeNormal() * KnockbackStrength + FVector(0.f, 0.f, 120.f), true, false);
+            HearCombatNoise(GetActorLocation());
+        }
+        if (bWindingUp)
+        {
+            SetZombieState(EDeadlandsZombieState::Attacking);
+            if (AI) AI->StopMovement();
+            return;
+        }
+    }
+
     if (Best && Target == Best &&
         FVector::Dist(GetActorLocation(), Best->GetActorLocation()) <= AttackRange &&
         CanSeePlayer(Best))
@@ -211,8 +286,9 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         if (AI) AI->StopMovement();
         if (Now >= NextAttackTime)
         {
-            NextAttackTime = Now + AttackCooldown;
-            Best->ApplyCombatDamage(AttackDamage);
+            bWindingUp = true;
+            WindupTarget = Best;
+            AttackWindupEnd = Now + AttackWindupSeconds;
         }
         return;
     }
@@ -226,6 +302,11 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
 {
     if (!HasAuthority() || bDead || Amount <= 0.f) return;
     Health = FMath::Max(0.f, Health - Amount);
+    bWindingUp = false;
+    WindupTarget.Reset();
+    StaggerEndTime = GetWorld() ? GetWorld()->GetTimeSeconds() + StaggerDuration : 0.f;
+    NextAttackTime = StaggerEndTime + 0.4f;
+    if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
     OnRep_Health();
     if (Health <= 0.f)
     {
@@ -235,6 +316,7 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
         GetCharacterMovement()->DisableMovement();
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         ApplyDeathVisual();
+        SetLifeSpan(CorpseDestroyDelay);
     }
     ForceNetUpdate();
 }
