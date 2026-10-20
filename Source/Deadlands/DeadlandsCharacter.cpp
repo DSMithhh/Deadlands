@@ -163,8 +163,9 @@ void ADeadlandsCharacter::ServerTryInteract_Implementation(AActor* RequestedTarg
     // pawn eye position can differ, so validate reach and visibility to the
     // actual target instead of requiring an identical camera ray.
     const FVector EyeLocation = GetPawnViewLocation();
-    const FVector TargetLocation = RequestedTarget->GetActorLocation();
-    const FVector ClosestPoint = RequestedTarget->GetComponentsBoundingBox().GetClosestPointTo(EyeLocation);
+    const FBox TargetBounds = RequestedTarget->GetComponentsBoundingBox();
+    const FVector TargetLocation = TargetBounds.GetCenter();
+    const FVector ClosestPoint = TargetBounds.GetClosestPointTo(EyeLocation);
 
     constexpr float MaxInteractionDistance = 250.f;
     if (FVector::DistSquared(EyeLocation, ClosestPoint) >
