@@ -20,6 +20,24 @@ ADeadlandsLightSwitch::ADeadlandsLightSwitch()
     Light->SetVisibility(bIsOn);
 }
 
+void ADeadlandsLightSwitch::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // A Blueprint asset may override the native constructor's replication default.
+    // Enforce the authoritative world actor's replication before gameplay begins.
+    if (HasAuthority() && !GetIsReplicated())
+    {
+        SetReplicates(true);
+    }
+
+    ApplyLightState();
+    UE_LOG(LogDeadlands, Warning,
+        TEXT("Switch BEGIN %s | Authority=%d | Replicates=%d | NetMode=%d | State=%d"),
+        *GetPathName(), HasAuthority() ? 1 : 0, GetIsReplicated() ? 1 : 0,
+        static_cast<int32>(GetNetMode()), bIsOn ? 1 : 0);
+}
+
 void ADeadlandsLightSwitch::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -39,14 +57,14 @@ void ADeadlandsLightSwitch::Interact_Implementation(ACharacter* InteractingChara
     }
 
     bIsOn = !bIsOn;
-    UE_LOG(LogDeadlands, Log, TEXT("Server switch %s state: %s"), *GetName(), bIsOn ? TEXT("ON") : TEXT("OFF"));
+    UE_LOG(LogDeadlands, Log, TEXT("Switch SERVER %s state: %s | Replicates=%d"), *GetPathName(), bIsOn ? TEXT("ON") : TEXT("OFF"), GetIsReplicated() ? 1 : 0);
     ApplyLightState();
     ForceNetUpdate();
 }
 
 void ADeadlandsLightSwitch::OnRep_IsOn()
 {
-    UE_LOG(LogDeadlands, Log, TEXT("Client received switch %s state: %s"), *GetName(), bIsOn ? TEXT("ON") : TEXT("OFF"));
+    UE_LOG(LogDeadlands, Log, TEXT("Switch ONREP %s state: %s"), *GetPathName(), bIsOn ? TEXT("ON") : TEXT("OFF"));
     ApplyLightState();
 }
 
