@@ -24,6 +24,8 @@
 #include "Interaction/DeadlandsInteractionPrompt.h"
 #include "Inventory/DeadlandsWorldPickup.h"
 #include "TimerManager.h"
+#include "DrawDebugHelpers.h"
+#include "GameFramework/Controller.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -84,6 +86,7 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
     PlayerInputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &ADeadlandsCharacter::ToggleCrouch);
+    PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ADeadlandsCharacter::TryMeleeAttack);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (InteractAction)
@@ -413,6 +416,44 @@ void ADeadlandsCharacter::DebugHeal()
     if (IsLocallyControlled()) ServerDebugChangeHealth(25.f);
 }
 
+void ADeadlandsCharacter::ApplyCombatDamage(float Amount)
+{
+    ApplySurvivalDamage(Amount);
+}
+
+void ADeadlandsCharacter::TryMeleeAttack()
+{
+    if (!IsLocallyControlled() || bIsDead || (InventoryWidget && InventoryWidget->IsInViewport())) return;
+    ServerMeleeAttack();
+}
+
+void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
+{
+    if (!HasAuthority() || bIsDead || !GetWorld()) return;
+    const float Now = GetWorld()->GetTimeSeconds();
+    if (Now - LastMeleeTime < MeleeCooldown) return;
+    LastMeleeTime = Now;
+
+    // Server chooses the hit target; clients cannot supply a victim or damage amount.
+    const FVector Start = GetPawnViewLocation();
+    const FVector Direction = GetController() ? GetController()->GetControlRotation().Vector() : GetActorForwardVector();
+    const FVector End = Start + Direction * MeleeRange;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsMelee), false, this);
+    const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
+        ECC_Pawn, FCollisionShape::MakeSphere(24.f), Params);
+    ADeadlandsCharacter* Victim = bHit ? Cast<ADeadlandsCharacter>(Hit.GetActor()) : nullptr;
+    const bool bValidHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
+    if (bValidHit) Victim->ApplyCombatDamage(MeleeDamage);
+    ClientCombatFeedback(bValidHit);
+}
+
+void ADeadlandsCharacter::ClientCombatFeedback_Implementation(bool bHit)
+{
+    CombatFeedback = bHit ? TEXT("MELEE HIT +20") : TEXT("MELEE MISS");
+    CombatFeedbackUntil = GetWorld() ? GetWorld()->GetTimeSeconds() + 0.8f : 0.f;
+}
+
 void ADeadlandsCharacter::ApplySurvivalDamage(float Amount)
 {
     if (!HasAuthority() || bIsDead || Amount <= 0.f) return;
@@ -534,13 +575,14 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
             return FString::ChrN(Filled, TEXT('|')) + FString::ChrN(10 - Filled, TEXT('.'));
         };
         InteractionPrompt->SetVitalsDebug(FString::Printf(
-            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f\nCROUCH: %s (requested: %s)\n%s"),
+            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f\nCROUCH: %s (requested: %s)\n%s\n%s"),
             *Bar(Health), Health, *Bar(Vitals->GetStamina()), Vitals->GetStamina(),
             *Bar(Vitals->GetHunger()), Vitals->GetHunger(),
             *Bar(Vitals->GetThirst()), Vitals->GetThirst(),
             bIsCrouched ? TEXT("YES") : TEXT("NO"),
             GetCharacterMovement() && GetCharacterMovement()->bWantsToCrouch ? TEXT("YES") : TEXT("NO"),
-            bIsDead ? TEXT("DEAD - RESPAWNING SOON") : TEXT("")));
+            bIsDead ? TEXT("DEAD - RESPAWNING SOON") : TEXT(""),
+            GetWorld()->GetTimeSeconds() < CombatFeedbackUntil ? *CombatFeedback : TEXT("")));
     }
     InteractionPromptCountdown -= DeltaSeconds;
     if (InteractionPromptCountdown > 0.f) return;
