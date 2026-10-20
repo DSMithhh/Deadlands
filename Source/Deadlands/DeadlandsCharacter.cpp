@@ -451,7 +451,14 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
     // Move it locally so crouch is visible even before crouch animations exist.
     if (IsLocallyControlled() && FirstPersonCameraComponent && bCameraBaseCaptured)
     {
-        const FVector Target = StandingCameraRelativeLocation + FVector(0.f, 0.f, bIsCrouched ? -40.f : 0.f);
+        // The head socket is rotated, so camera-relative Z is not world up/down.
+        // Convert a vertical world-space offset into the parent socket's local space.
+        const USceneComponent* CameraParent = FirstPersonCameraComponent->GetAttachParent();
+        const FVector WorldDrop(0.f, 0.f, bIsCrouched ? -40.f : 0.f);
+        const FVector LocalDrop = CameraParent
+            ? CameraParent->GetSocketTransform(FirstPersonCameraComponent->GetAttachSocketName(), RTS_World).InverseTransformVectorNoScale(WorldDrop)
+            : WorldDrop;
+        const FVector Target = StandingCameraRelativeLocation + LocalDrop;
         FirstPersonCameraComponent->SetRelativeLocation(FMath::VInterpTo(
             FirstPersonCameraComponent->GetRelativeLocation(), Target, DeltaSeconds, 10.f));
     }
