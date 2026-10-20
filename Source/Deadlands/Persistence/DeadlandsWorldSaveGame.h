@@ -17,4 +17,8 @@ public:
     /** Generic persistent flags, keyed by actor ID and state name. */
     UPROPERTY()
     TMap<FString, bool> SavedActorFlags;
+
+    /** Finite supplies remaining in each persistent container. */
+    UPROPERTY()
+    TMap<FString, int32> SavedContainerSupplies;
 };
