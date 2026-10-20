@@ -16,7 +16,7 @@ class DEADLANDS_API UDeadlandsInventoryWidget : public UUserWidget
     GENERATED_BODY()
 public:
     void SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container);
-    virtual void NativeConstruct() override;
+    virtual void NativeOnInitialized() override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
