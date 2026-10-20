@@ -5,7 +5,7 @@ ADeadlandsDayNightClock::ADeadlandsDayNightClock()
 {
     PrimaryActorTick.bCanEverTick = true;
     bReplicates = true;
-    NetUpdateFrequency = 2.f;
+    SetNetUpdateFrequency(2.f);
 }
 void ADeadlandsDayNightClock::BeginPlay()
 {
