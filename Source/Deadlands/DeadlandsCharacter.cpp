@@ -12,6 +12,8 @@
 #include "Interaction/DeadlandsInteractable.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/PlayerState.h"
+#include "Persistence/DeadlandsWorldPersistence.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -197,6 +199,7 @@ void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Supplies, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Items, COND_OwnerOnly);
 }
 
 bool ADeadlandsCharacter::AddSupplies(int32 Amount)
@@ -215,4 +218,35 @@ bool ADeadlandsCharacter::AddSupplies(int32 Amount)
 void ADeadlandsCharacter::OnRep_Supplies()
 {
     OnSuppliesChanged(Supplies);
+}
+
+FString ADeadlandsCharacter::GetInventorySaveKey() const
+{
+    const APlayerState* PS = GetPlayerState();
+    if (!PS || PS->GetPlayerId() < 0) return FString();
+    // Prototype only: PIE player IDs are not stable account identities.
+    return FString::Printf(TEXT("Player|%d"), PS->GetPlayerId());
+}
+
+bool ADeadlandsCharacter::EnsureItemInventory()
+{
+    if (!HasAuthority()) return false;
+    if (bItemsLoaded) return true;
+    const FString Key = GetInventorySaveKey();
+    if (Key.IsEmpty()) return false;
+    FDeadlandsWorldPersistence::LoadInventory(this, Key, Items);
+    bItemsLoaded = true;
+    NotifyItemsChanged();
+    return true;
+}
+
+void ADeadlandsCharacter::NotifyItemsChanged()
+{
+    OnItemsChanged();
+    ForceNetUpdate();
+}
+
+void ADeadlandsCharacter::OnRep_Items()
+{
+    OnItemsChanged();
 }
