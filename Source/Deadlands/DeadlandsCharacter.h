@@ -109,10 +109,10 @@ protected:
     TObjectPtr<USpotLightComponent> Flashlight;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Survival")
-    float WalkSpeed = 500.f;
+    float SurvivalWalkSpeed = 500.f;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Survival")
-    float SprintSpeed = 800.f;
+    float SurvivalSprintSpeed = 800.f;
 
     UPROPERTY(ReplicatedUsing=OnRep_Sprinting, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
     bool bIsSprinting = false;
