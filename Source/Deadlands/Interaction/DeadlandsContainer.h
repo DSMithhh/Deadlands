@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interaction/DeadlandsInteractable.h"
+#include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsContainer.generated.h"
 
 class UStaticMeshComponent;
@@ -33,6 +34,22 @@ protected:
     /** Supplies assigned once when no save exists for this container. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot", meta=(ClampMin="0"))
     int32 InitialSupplies = 5;
+
+    /** New item inventory, independent of legacy generic supplies. */
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot")
+    TArray<FDeadlandsItemStack> InitialItems;
+
+    UPROPERTY(ReplicatedUsing=OnRep_Items, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Loot")
+    TArray<FDeadlandsItemStack> Items;
+
+    UFUNCTION()
+    void OnRep_Items();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Loot")
+    void OnContainerItemsChanged();
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
+    TArray<FDeadlandsItemStack> GetItems() const { return Items; }
 
     UPROPERTY(ReplicatedUsing=OnRep_Supplies, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Loot")
     int32 RemainingSupplies = 0;
