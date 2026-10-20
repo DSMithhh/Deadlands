@@ -1,6 +1,8 @@
 #include "Zombies/DeadlandsZombie.h"
 #include "DeadlandsCharacter.h"
 #include "AIController.h"
+#include "NavigationSystem.h"
+#include "NavigationPath.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -159,8 +161,30 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         if (AI) AI->StopMovement();
         return;
     }
-    if (AI) AI->StopMovement();
-    AddMovementInput(ChooseSteering(Toward.GetSafeNormal()), 1.f);
+
+    // Navigation-driven pursuit, updated at a modest rate to avoid pathfinding every frame.
+    // Never fall back to straight-line movement: it would push against walls or
+    // allow pursuit through areas with no valid navigable route.
+    if (AI && Now >= NextDecisionTime)
+    {
+        NextDecisionTime = Now + 0.45f;
+        if (UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+        {
+            FNavLocation Projected;
+            if (Nav->ProjectPointToNavigation(LastKnownLocation, Projected, FVector(200.f, 200.f, 300.f)))
+            {
+                AI->MoveToLocation(Projected.Location, 65.f, true, true, false, true, nullptr, true);
+            }
+            else
+            {
+                AI->StopMovement();
+            }
+        }
+        else
+        {
+            AI->StopMovement();
+        }
+    }
 }
 
 void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
