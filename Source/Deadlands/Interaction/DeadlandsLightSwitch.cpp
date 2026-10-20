@@ -2,6 +2,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Deadlands.h"
 
 ADeadlandsLightSwitch::ADeadlandsLightSwitch()
 {
@@ -38,12 +39,14 @@ void ADeadlandsLightSwitch::Interact_Implementation(ACharacter* InteractingChara
     }
 
     bIsOn = !bIsOn;
+    UE_LOG(LogDeadlands, Log, TEXT("Server switch %s state: %s"), *GetName(), bIsOn ? TEXT("ON") : TEXT("OFF"));
     ApplyLightState();
     ForceNetUpdate();
 }
 
 void ADeadlandsLightSwitch::OnRep_IsOn()
 {
+    UE_LOG(LogDeadlands, Log, TEXT("Client received switch %s state: %s"), *GetName(), bIsOn ? TEXT("ON") : TEXT("OFF"));
     ApplyLightState();
 }
 
