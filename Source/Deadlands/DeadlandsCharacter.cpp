@@ -267,12 +267,7 @@ void ADeadlandsCharacter::ToggleInventory()
     if (!IsLocallyControlled()) return;
     if (InventoryWidget && InventoryWidget->IsInViewport())
     {
-        InventoryWidget->RemoveFromParent();
-        if (APlayerController* PC = Cast<APlayerController>(GetController()))
-        {
-            PC->SetInputMode(FInputModeGameOnly());
-            PC->bShowMouseCursor = false;
-        }
+        CloseInventory();
         return;
     }
     ShowInventory(nullptr);
@@ -317,4 +312,17 @@ void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer
     if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Bounds.GetCenter(), ECC_Visibility, Params) ||
         Hit.GetActor() != Container) return;
     Container->TransferItemsToCharacter(this, ItemId, bTake, Quantity);
+}
+
+void ADeadlandsCharacter::CloseInventory()
+{
+    if (!IsLocallyControlled()) return;
+    if (InventoryWidget && InventoryWidget->IsInViewport())
+        InventoryWidget->RemoveFromParent();
+    CurrentContainer = nullptr;
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        PC->SetInputMode(FInputModeGameOnly());
+        PC->bShowMouseCursor = false;
+    }
 }
