@@ -25,6 +25,7 @@
 #include "Inventory/DeadlandsWorldPickup.h"
 #include "TimerManager.h"
 #include "Zombies/DeadlandsZombie.h"
+#include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
 
@@ -449,6 +450,11 @@ void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
     const bool bZombieHit = IsValid(Zombie) && Zombie->GetZombieHealth() > 0.f;
     if (bPlayerHit) Victim->ApplyCombatDamage(MeleeDamage);
     if (bZombieHit) Zombie->ReceiveMeleeDamage(MeleeDamage);
+    // Melee combat draws the attention of nearby unengaged infected.
+    for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+    {
+        if (IsValid(*It)) (*It)->HearCombatNoise(GetActorLocation());
+    }
     ClientCombatFeedback(bPlayerHit || bZombieHit);
 }
 
