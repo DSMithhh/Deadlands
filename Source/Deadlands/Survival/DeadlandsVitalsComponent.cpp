@@ -15,12 +15,27 @@ void UDeadlandsVitalsComponent::SetSprinting(bool bNewSprinting)
 {
     if (GetOwner() && GetOwner()->HasAuthority()) bSprinting = bNewSprinting;
 }
+bool UDeadlandsVitalsComponent::Consume(FName ItemId)
+{
+    if (!GetOwner() || !GetOwner()->HasAuthority()) return false;
+    if (ItemId == TEXT("Food") && Hunger < 100.f)
+    {
+        Hunger = FMath::Min(100.f, Hunger + 30.f);
+        return true;
+    }
+    if (ItemId == TEXT("Water") && Thirst < 100.f)
+    {
+        Thirst = FMath::Min(100.f, Thirst + 40.f);
+        return true;
+    }
+    return false;
+}
 void UDeadlandsVitalsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
     if (!GetOwner() || !GetOwner()->HasAuthority()) return;
     const float PreviousStamina = Stamina;
-    Stamina = FMath::Clamp(Stamina + (bSprinting ? -StaminaDrainPerSecond : StaminaRecoveryPerSecond) * DeltaTime, 0.f, 100.f);
+    Stamina = FMath::Clamp(Stamina + (bSprinting ? -StaminaDrainPerSecond : StaminaRecoveryPerSecond * GetRecoveryMultiplier()) * DeltaTime, 0.f, 100.f);
     Hunger = FMath::Clamp(Hunger - HungerLossPerMinute * DeltaTime / 60.f, 0.f, 100.f);
     Thirst = FMath::Clamp(Thirst - ThirstLossPerMinute * DeltaTime / 60.f, 0.f, 100.f);
     if (bSprinting && PreviousStamina > 0.f && Stamina <= 0.f)
