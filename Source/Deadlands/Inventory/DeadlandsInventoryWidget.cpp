@@ -56,6 +56,18 @@ void UDeadlandsInventoryWidget::NativeConstruct()
     PutButton->AddChild(PutLabel);
     TakeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeOne);
     PutButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutOne);
+    UButton* TakeStackButton = WidgetTree->ConstructWidget<UButton>();
+    UButton* PutStackButton = WidgetTree->ConstructWidget<UButton>();
+    Column->AddChildToVerticalBox(TakeStackButton);
+    Column->AddChildToVerticalBox(PutStackButton);
+    UTextBlock* TakeStackLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    TakeStackLabel->SetText(FText::FromString(TEXT(" TAKE STACK ")));
+    TakeStackButton->AddChild(TakeStackLabel);
+    UTextBlock* PutStackLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    PutStackLabel->SetText(FText::FromString(TEXT(" PUT STACK ")));
+    PutStackButton->AddChild(PutStackLabel);
+    TakeStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeStack);
+    PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
     Refresh();
 }
 
@@ -101,4 +113,22 @@ void UDeadlandsInventoryWidget::PutOne()
 {
     if (Survivor && LootContainer && ItemPicker)
         Survivor->RequestItemTransfer(LootContainer, FName(*ItemPicker->GetSelectedOption()), false, 1);
+}
+
+void UDeadlandsInventoryWidget::TakeStack()
+{
+    if (Survivor && LootContainer && ItemPicker)
+    {
+        const FName Id(*ItemPicker->GetSelectedOption());
+        Survivor->RequestItemTransfer(LootContainer, Id, true, FDeadlandsItems::MaxStack(Id));
+    }
+}
+
+void UDeadlandsInventoryWidget::PutStack()
+{
+    if (Survivor && LootContainer && ItemPicker)
+    {
+        const FName Id(*ItemPicker->GetSelectedOption());
+        Survivor->RequestItemTransfer(LootContainer, Id, false, FDeadlandsItems::MaxStack(Id));
+    }
 }
