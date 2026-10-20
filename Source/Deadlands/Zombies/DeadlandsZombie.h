@@ -48,7 +48,20 @@ protected:
     UFUNCTION() void OnRep_Dead();
 
 private:
+    UPROPERTY(EditAnywhere, Category="Deadlands|Zombie AI")
+    float HearingRange = 650.f;
+    UPROPERTY(EditAnywhere, Category="Deadlands|Zombie AI")
+    float SprintHearingRange = 1600.f;
+    UPROPERTY(EditAnywhere, Category="Deadlands|Zombie AI")
+    float MemorySeconds = 7.f;
+    UPROPERTY(EditAnywhere, Category="Deadlands|Zombie AI")
+    float FieldOfViewDegrees = 150.f;
+    TWeakObjectPtr<ADeadlandsCharacter> CurrentTarget;
+    FVector LastKnownLocation = FVector::ZeroVector;
+    float LastSensedTime = -1000.f;
     float NextDecisionTime = 0.f;
     float NextAttackTime = 0.f;
+    bool CanSeePlayer(const ADeadlandsCharacter* Player) const;
+    FVector ChooseSteering(const FVector& Desired) const;
     void ApplyDeathVisual();
 };
