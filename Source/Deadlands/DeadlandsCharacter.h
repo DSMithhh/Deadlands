@@ -75,6 +75,10 @@ public:
     void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
     void CloseInventory();
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
+    void RequestConsumeItem(FName ItemId);
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
+    void RequestDropItem(FName ItemId);
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     UFUNCTION(BlueprintPure, Category="Deadlands|Vitals")
@@ -167,6 +171,9 @@ protected:
     TObjectPtr<ADeadlandsContainer> CurrentContainer;
 
     void ToggleInventory();
+    void ToggleCrouch();
+    UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);
+    UFUNCTION(Server, Reliable) void ServerDropItem(FName ItemId);
     void ShowInventory(ADeadlandsContainer* Container);
 
     UFUNCTION(Server, Reliable)
