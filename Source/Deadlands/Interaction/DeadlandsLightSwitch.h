@@ -21,6 +21,8 @@ public:
     virtual void Interact_Implementation(ACharacter* InteractingCharacter) override;
 
 protected:
+    virtual void BeginPlay() override;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UStaticMeshComponent> SwitchMesh;
 
