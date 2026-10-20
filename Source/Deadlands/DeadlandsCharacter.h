@@ -13,6 +13,7 @@ class UDeadlandsInventoryWidget;
 class ADeadlandsContainer;
 class USkeletalMeshComponent;
 class UCameraComponent;
+class USpotLightComponent;
 class UInputAction;
 struct FInputActionValue;
 
@@ -73,6 +74,20 @@ public:
 
     void CloseInventory();
 
+    // Pack 05: independent sprint, local flashlight and replicated health prototypes.
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival")
+    float GetHealth() const { return Health; }
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival")
+    float GetMaxHealth() const { return MaxHealth; }
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival")
+    bool IsSprinting() const { return bIsSprinting; }
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival")
+    bool IsFlashlightOn() const { return bFlashlightOn; }
+
+
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     /** Server-only transfer into this pawn's prototype inventory. */
@@ -89,6 +104,50 @@ protected:
     TArray<FDeadlandsItemStack> Items;
 
     bool bItemsLoaded = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
+    TObjectPtr<USpotLightComponent> Flashlight;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Survival")
+    float WalkSpeed = 500.f;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Survival")
+    float SprintSpeed = 800.f;
+
+    UPROPERTY(ReplicatedUsing=OnRep_Sprinting, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
+    bool bIsSprinting = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
+    bool bFlashlightOn = false;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Survival")
+    float MaxHealth = 100.f;
+
+    UPROPERTY(ReplicatedUsing=OnRep_Health, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
+    float Health = 100.f;
+
+    void BeginSprint();
+    void EndSprint();
+    void ToggleFlashlight();
+    void DebugDamage();
+    void DebugHeal();
+    void ApplySprintSpeed();
+
+    UFUNCTION(Server, Reliable)
+    void ServerSetSprinting(bool bNewSprinting);
+
+    UFUNCTION(Server, Reliable)
+    void ServerDebugChangeHealth(float Delta);
+
+    UFUNCTION()
+    void OnRep_Sprinting();
+
+    UFUNCTION()
+    void OnRep_Health();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Survival")
+    void OnHealthChanged(float NewHealth, float NewMaxHealth);
+
 
     UPROPERTY(Transient)
     TObjectPtr<UDeadlandsInventoryWidget> InventoryWidget;
