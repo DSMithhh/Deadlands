@@ -362,6 +362,7 @@ void ADeadlandsCharacter::BeginSprint()
     if (!IsLocallyControlled()) return;
     if (Vitals && !Vitals->CanSprint()) return;
     bIsSprinting = true;
+    if (HasAuthority() && Vitals) Vitals->SetSprinting(true);
     ApplySprintSpeed();
     if (!HasAuthority()) ServerSetSprinting(true);
 }
