@@ -70,6 +70,8 @@ public:
     void NotifyItemsChanged();
     /** Called by server-side survival vitals when hunger or thirst reaches zero. */
     void ApplySurvivalDamage(float Amount);
+    /** Server-authoritative damage shared by survival and melee combat. */
+    void ApplyCombatDamage(float Amount);
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
@@ -156,6 +158,21 @@ protected:
     void RespawnSurvivor();
     void ApplyDeathState();
     UFUNCTION() void OnRep_Dead();
+
+    UPROPERTY(EditDefaultsOnly, Category="Deadlands|Combat")
+    bool bAllowFriendlyFire = true; // Prototype setting: enable PvP testing; disable later for co-op.
+    UPROPERTY(EditDefaultsOnly, Category="Deadlands|Combat")
+    float MeleeDamage = 20.f;
+    UPROPERTY(EditDefaultsOnly, Category="Deadlands|Combat")
+    float MeleeRange = 180.f;
+    UPROPERTY(EditDefaultsOnly, Category="Deadlands|Combat")
+    float MeleeCooldown = 0.65f;
+    float LastMeleeTime = -100.f;
+    FString CombatFeedback;
+    float CombatFeedbackUntil = 0.f;
+    void TryMeleeAttack();
+    UFUNCTION(Server, Reliable) void ServerMeleeAttack();
+    UFUNCTION(Client, Reliable) void ClientCombatFeedback(bool bHit);
 
     void BeginSprint();
     void EndSprint();
