@@ -7,6 +7,7 @@
 
 class UStaticMeshComponent;
 class USceneComponent;
+class UBoxComponent;
 
 /** Replicated, persistent, interactable prototype door. */
 UCLASS(Blueprintable)
@@ -30,6 +31,10 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UStaticMeshComponent> DoorMesh;
+
+    /** Fixed interaction volume near the hinge, available whether the door is open or shut. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UBoxComponent> InteractionVolume;
 
     UPROPERTY(EditInstanceOnly, Category="Deadlands|Persistence")
     FName PersistenceId = NAME_None;
