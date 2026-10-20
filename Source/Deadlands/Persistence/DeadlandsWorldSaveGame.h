@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsWorldSaveGame.generated.h"
 
 /** Server-owned world state. New persistent actor types can add additional maps. */
@@ -21,4 +22,7 @@ public:
     /** Finite supplies remaining in each persistent container. */
     UPROPERTY()
     TMap<FString, int32> SavedContainerSupplies;
+
+    UPROPERTY()
+    TMap<FString, FDeadlandsItemInventory> SavedInventories;
 };
