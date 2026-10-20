@@ -54,7 +54,33 @@ protected:
 	class UInputAction* MouseLookAction;
 	
 public:
-	ADeadlandsCharacter();
+    ADeadlandsCharacter();
+
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+    /** Server-only transfer into this pawn's prototype inventory. */
+    bool AddSupplies(int32 Amount);
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
+    int32 GetSupplies() const { return Supplies; }
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
+    int32 GetSupplyCapacity() const { return SupplyCapacity; }
+
+protected:
+    UPROPERTY(ReplicatedUsing=OnRep_Supplies, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Inventory")
+    int32 Supplies = 0;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Deadlands|Inventory", meta=(ClampMin="1"))
+    int32 SupplyCapacity = 20;
+
+    UFUNCTION()
+    void OnRep_Supplies();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Inventory")
+    void OnSuppliesChanged(int32 NewAmount);
+
+public:
 
 protected:
 
