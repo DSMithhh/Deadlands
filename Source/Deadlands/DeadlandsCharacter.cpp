@@ -11,6 +11,7 @@
 #include "Deadlands.h"
 #include "Interaction/DeadlandsInteractable.h"
 #include "Engine/World.h"
+#include "Net/UnrealNetwork.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -190,4 +191,28 @@ void ADeadlandsCharacter::ServerTryInteract_Implementation(AActor* RequestedTarg
         UE_LOG(LogDeadlands, Log, TEXT("Server interaction: %s uses %s"), *GetNameSafe(this), *GetNameSafe(RequestedTarget));
         IDeadlandsInteractable::Execute_Interact(RequestedTarget, this);
     }
+}
+
+void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Supplies, COND_OwnerOnly);
+}
+
+bool ADeadlandsCharacter::AddSupplies(int32 Amount)
+{
+    if (!HasAuthority() || Amount <= 0 || Supplies > SupplyCapacity - Amount)
+    {
+        return false;
+    }
+    Supplies += Amount;
+    OnSuppliesChanged(Supplies);
+    ForceNetUpdate();
+    UE_LOG(LogDeadlands, Log, TEXT("%s now carries %d supplies"), *GetNameSafe(this), Supplies);
+    return true;
+}
+
+void ADeadlandsCharacter::OnRep_Supplies()
+{
+    OnSuppliesChanged(Supplies);
 }
