@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "TimerManager.h"
 #include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsCharacter.generated.h"
 
