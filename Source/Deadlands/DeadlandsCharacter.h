@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsCharacter.generated.h"
 
 class UInputComponent;
@@ -56,6 +57,15 @@ protected:
 public:
     ADeadlandsCharacter();
 
+    /** Loads this player's item inventory on first use. Returns false if identity is not ready. */
+    bool EnsureItemInventory();
+    FString GetInventorySaveKey() const;
+    TArray<FDeadlandsItemStack>& GetMutableItems() { return Items; }
+    void NotifyItemsChanged();
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
+    TArray<FDeadlandsItemStack> GetItems() const { return Items; }
+
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     /** Server-only transfer into this pawn's prototype inventory. */
@@ -68,6 +78,17 @@ public:
     int32 GetSupplyCapacity() const { return SupplyCapacity; }
 
 protected:
+    UPROPERTY(ReplicatedUsing=OnRep_Items, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Inventory")
+    TArray<FDeadlandsItemStack> Items;
+
+    bool bItemsLoaded = false;
+
+    UFUNCTION()
+    void OnRep_Items();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Inventory")
+    void OnItemsChanged();
+
     UPROPERTY(ReplicatedUsing=OnRep_Supplies, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Inventory")
     int32 Supplies = 0;
 
