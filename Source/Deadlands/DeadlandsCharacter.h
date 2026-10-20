@@ -9,6 +9,8 @@
 #include "DeadlandsCharacter.generated.h"
 
 class UInputComponent;
+class UDeadlandsInventoryWidget;
+class ADeadlandsContainer;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
@@ -66,6 +68,9 @@ public:
     UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
 
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
+    void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
+
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     /** Server-only transfer into this pawn's prototype inventory. */
@@ -82,6 +87,18 @@ protected:
     TArray<FDeadlandsItemStack> Items;
 
     bool bItemsLoaded = false;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UDeadlandsInventoryWidget> InventoryWidget;
+
+    UPROPERTY(Transient)
+    TObjectPtr<ADeadlandsContainer> CurrentContainer;
+
+    void ToggleInventory();
+    void ShowInventory(ADeadlandsContainer* Container);
+
+    UFUNCTION(Server, Reliable)
+    void ServerTransferItems(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
     UFUNCTION()
     void OnRep_Items();
