@@ -149,24 +149,40 @@ void ADeadlandsCharacter::TryInteract()
 
 void ADeadlandsCharacter::ServerTryInteract_Implementation(AActor* RequestedTarget)
 {
-    if (!IsValid(RequestedTarget) || !RequestedTarget->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()) || !GetWorld())
+    if (!IsValid(RequestedTarget) || !GetWorld() ||
+        !RequestedTarget->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()))
     {
         return;
     }
 
-    // Independently verify reach and line of sight on the authoritative server.
-    // The controller's replicated control rotation supplies the server-side look direction.
-    const FVector Start = GetPawnViewLocation();
-    const FVector End = Start + GetBaseAimRotation().Vector() * 250.f;
+    // Client traces from its animated first-person camera. On the server the
+    // pawn eye position can differ, so validate reach and visibility to the
+    // actual target instead of requiring an identical camera ray.
+    const FVector EyeLocation = GetPawnViewLocation();
+    const FVector TargetLocation = RequestedTarget->GetActorLocation();
+    const FVector ClosestPoint = RequestedTarget->GetComponentsBoundingBox().GetClosestPointTo(EyeLocation);
+
+    constexpr float MaxInteractionDistance = 250.f;
+    if (FVector::DistSquared(EyeLocation, ClosestPoint) >
+        FMath::Square(MaxInteractionDistance))
+    {
+        UE_LOG(LogDeadlands, Verbose, TEXT("Interaction rejected: %s out of range"), *GetNameSafe(RequestedTarget));
+        return;
+    }
+
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsServerInteraction), false, this);
-    if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) || Hit.GetActor() != RequestedTarget)
+    // Trace toward the target's bounds center, ensuring intervening walls block use.
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TargetLocation, ECC_Visibility, Params) ||
+        Hit.GetActor() != RequestedTarget)
     {
+        UE_LOG(LogDeadlands, Verbose, TEXT("Interaction rejected: %s blocked or not visible"), *GetNameSafe(RequestedTarget));
         return;
     }
 
     if (IDeadlandsInteractable::Execute_CanInteract(RequestedTarget, this))
     {
+        UE_LOG(LogDeadlands, Log, TEXT("Server interaction: %s uses %s"), *GetNameSafe(this), *GetNameSafe(RequestedTarget));
         IDeadlandsInteractable::Execute_Interact(RequestedTarget, this);
     }
 }
