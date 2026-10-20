@@ -292,6 +292,7 @@ void ADeadlandsCharacter::ShowInventory(ADeadlandsContainer* Container)
     {
         FInputModeGameAndUI Mode;
         Mode.SetHideCursorDuringCapture(false);
+        Mode.SetWidgetToFocus(InventoryWidget->TakeWidget());
         PC->SetInputMode(Mode);
         PC->bShowMouseCursor = true;
     }
