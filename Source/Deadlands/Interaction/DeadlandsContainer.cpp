@@ -23,9 +23,23 @@ void ADeadlandsContainer::BeginPlay()
         RemainingSupplies = FMath::Max(0, InitialSupplies);
         // A saved zero is meaningful: empty containers never refill.
         FDeadlandsWorldPersistence::LoadContainerSupplies(this, GetPersistenceKey(), RemainingSupplies);
+        Items = InitialItems;
+        // Never refill an inventory already saved as empty.
+        if (!FDeadlandsWorldPersistence::LoadInventory(this, TEXT("Container|") + GetPersistenceKey(), Items))
+        {
+            TArray<FDeadlandsItemStack> Sanitized;
+            for (const auto& Stack : Items)
+            {
+                if (!FDeadlandsItems::Valid(Stack)) continue;
+                for (int32 i = 0; i < FMath::Min(Stack.Quantity, 1000); ++i)
+                    FDeadlandsItems::AddOne(Sanitized, Stack.ItemId, 1000);
+            }
+            Items = MoveTemp(Sanitized);
+        }
     }
     ApplyState();
     OnRemainingSuppliesChanged(RemainingSupplies);
+    OnContainerItemsChanged();
 }
 
 void ADeadlandsContainer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -33,6 +47,7 @@ void ADeadlandsContainer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(ADeadlandsContainer, bOpen);
     DOREPLIFETIME(ADeadlandsContainer, RemainingSupplies);
+    DOREPLIFETIME(ADeadlandsContainer, Items);
 }
 
 bool ADeadlandsContainer::CanInteract_Implementation(ACharacter* InteractingCharacter) const
@@ -53,6 +68,25 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
         return;
     }
 
+    // Typed items take priority: each F press moves one item into the player.
+    ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(InteractingCharacter);
+    if (Items.Num() > 0)
+    {
+        if (!Survivor || !Survivor->EnsureItemInventory()) return;
+        const FName ItemId = Items[0].ItemId;
+        if (FDeadlandsWorldPersistence::TransferItem(this,
+            TEXT("Container|") + GetPersistenceKey(), Survivor->GetInventorySaveKey(),
+            ItemId, 20, Items, Survivor->GetMutableItems()))
+        {
+            OnContainerItemsChanged();
+            Survivor->NotifyItemsChanged();
+            ForceNetUpdate();
+            UE_LOG(LogDeadlands, Log, TEXT("Transferred %s from %s"), *ItemId.ToString(), *GetNameSafe(this));
+        }
+        return;
+    }
+
+    // Legacy supplies still work for containers without typed items.
     // Once opened, each F press transfers exactly one supply. When empty,
     // pressing F closes the container.
     if (RemainingSupplies <= 0)
@@ -64,7 +98,6 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
         return;
     }
 
-    ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(InteractingCharacter);
     if (!Survivor || Survivor->GetSupplies() >= Survivor->GetSupplyCapacity())
     {
         UE_LOG(LogDeadlands, Log, TEXT("Cannot loot %s: player inventory full or incompatible"), *GetNameSafe(this));
@@ -91,6 +124,7 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
 
 void ADeadlandsContainer::OnRep_Open() { ApplyState(); }
 void ADeadlandsContainer::OnRep_Supplies() { OnRemainingSuppliesChanged(RemainingSupplies); }
+void ADeadlandsContainer::OnRep_Items() { OnContainerItemsChanged(); }
 
 FString ADeadlandsContainer::GetPersistenceKey() const
 {
