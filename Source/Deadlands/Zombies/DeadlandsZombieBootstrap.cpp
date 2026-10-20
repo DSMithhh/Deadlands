@@ -39,7 +39,7 @@ void UDeadlandsZombieBootstrap::SpawnTestZombies()
     // Skip automatic spawning if the designer already placed zombies in this level.
     for (TActorIterator<ADeadlandsZombie> It(World); It; ++It) return;
 
-    constexpr FVector2D Offsets[] = {
+    const FVector2D Offsets[] = {
         FVector2D(500.f, 0.f), FVector2D(-450.f, 200.f), FVector2D(100.f, 600.f)
     };
     for (const FVector2D& Offset : Offsets)
