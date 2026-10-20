@@ -13,4 +13,8 @@ class DEADLANDS_API UDeadlandsWorldSaveGame : public USaveGame
 public:
     UPROPERTY()
     TMap<FString, bool> SavedSwitchStates;
+
+    /** Generic persistent flags, keyed by actor ID and state name. */
+    UPROPERTY()
+    TMap<FString, bool> SavedActorFlags;
 };
