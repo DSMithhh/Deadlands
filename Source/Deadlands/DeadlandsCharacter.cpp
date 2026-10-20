@@ -20,9 +20,13 @@
 #include "GameFramework/PlayerController.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
+#include "Survival/DeadlandsVitalsComponent.h"
+#include "Interaction/DeadlandsInteractionPrompt.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
+    PrimaryActorTick.bCanEverTick = true;
+    Vitals = CreateDefaultSubobject<UDeadlandsVitalsComponent>(TEXT("SurvivalVitals"));
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 	
@@ -356,6 +360,7 @@ void ADeadlandsCharacter::ApplySprintSpeed()
 void ADeadlandsCharacter::BeginSprint()
 {
     if (!IsLocallyControlled()) return;
+    if (Vitals && !Vitals->CanSprint()) return;
     bIsSprinting = true;
     ApplySprintSpeed();
     if (!HasAuthority()) ServerSetSprinting(true);
@@ -365,13 +370,15 @@ void ADeadlandsCharacter::EndSprint()
 {
     if (!IsLocallyControlled()) return;
     bIsSprinting = false;
+    if (HasAuthority() && Vitals) Vitals->SetSprinting(false);
     ApplySprintSpeed();
     if (!HasAuthority()) ServerSetSprinting(false);
 }
 
 void ADeadlandsCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
 {
-    bIsSprinting = bNewSprinting;
+    bIsSprinting = bNewSprinting && (!Vitals || Vitals->CanSprint());
+    if (Vitals) Vitals->SetSprinting(bIsSprinting);
     ApplySprintSpeed();
     ForceNetUpdate();
 }
@@ -412,4 +419,54 @@ void ADeadlandsCharacter::OnRep_Health()
 {
     OnHealthChanged(Health, MaxHealth);
     UE_LOG(LogDeadlands, Log, TEXT("%s health: %.0f / %.0f"), *GetNameSafe(this), Health, MaxHealth);
+}
+
+void ADeadlandsCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+    if (IsLocallyControlled())
+    {
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            InteractionPrompt = CreateWidget<UDeadlandsInteractionPrompt>(PC, UDeadlandsInteractionPrompt::StaticClass());
+            if (InteractionPrompt) InteractionPrompt->AddToViewport(5);
+        }
+    }
+}
+
+void ADeadlandsCharacter::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    if (HasAuthority() && bIsSprinting && Vitals && !Vitals->CanSprint())
+    {
+        bIsSprinting = false;
+        Vitals->SetSprinting(false);
+        ApplySprintSpeed();
+        ForceNetUpdate();
+    }
+    if (IsLocallyControlled() && bIsSprinting && Vitals && !Vitals->CanSprint())
+    {
+        bIsSprinting = false;
+        ApplySprintSpeed();
+    }
+    if (!IsLocallyControlled() || !InteractionPrompt || !FirstPersonCameraComponent || !GetWorld()) return;
+    InteractionPromptCountdown -= DeltaSeconds;
+    if (InteractionPromptCountdown > 0.f) return;
+    InteractionPromptCountdown = 0.1f;
+    if (InventoryWidget && InventoryWidget->IsInViewport())
+    {
+        InteractionPrompt->SetPrompt(TEXT(""));
+        return;
+    }
+    const FVector Start = FirstPersonCameraComponent->GetComponentLocation();
+    const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 250.f;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsPrompt), false, this);
+    const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
+        ECC_Visibility, FCollisionShape::MakeSphere(12.f), Params);
+    AActor* Target = bHit ? Hit.GetActor() : nullptr;
+    const bool bInteractable = IsValid(Target) &&
+        Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()) &&
+        IDeadlandsInteractable::Execute_CanInteract(Target, this);
+    InteractionPrompt->SetPrompt(bInteractable ? TEXT("[F] Interact") : TEXT(""));
 }
