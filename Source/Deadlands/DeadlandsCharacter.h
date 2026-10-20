@@ -14,6 +14,8 @@ class ADeadlandsContainer;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class USpotLightComponent;
+class UDeadlandsVitalsComponent;
+class UDeadlandsInteractionPrompt;
 class UInputAction;
 struct FInputActionValue;
 
@@ -73,6 +75,10 @@ public:
     void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
     void CloseInventory();
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaSeconds) override;
+    UFUNCTION(BlueprintPure, Category="Deadlands|Vitals")
+    UDeadlandsVitalsComponent* GetVitals() const { return Vitals; }
 
     // Pack 05: independent sprint, local flashlight and replicated health prototypes.
     UFUNCTION(BlueprintPure, Category="Deadlands|Survival")
@@ -104,6 +110,11 @@ protected:
     TArray<FDeadlandsItemStack> Items;
 
     bool bItemsLoaded = false;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Vitals")
+    TObjectPtr<UDeadlandsVitalsComponent> Vitals;
+    UPROPERTY(Transient)
+    TObjectPtr<UDeadlandsInteractionPrompt> InteractionPrompt;
+    float InteractionPromptCountdown = 0.f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
     TObjectPtr<USpotLightComponent> Flashlight;
