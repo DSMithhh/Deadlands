@@ -24,6 +24,7 @@
 #include "Interaction/DeadlandsInteractionPrompt.h"
 #include "Inventory/DeadlandsWorldPickup.h"
 #include "TimerManager.h"
+#include "Zombies/DeadlandsZombie.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
 
@@ -443,9 +444,12 @@ void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
     const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
         ECC_Pawn, FCollisionShape::MakeSphere(24.f), Params);
     ADeadlandsCharacter* Victim = bHit ? Cast<ADeadlandsCharacter>(Hit.GetActor()) : nullptr;
-    const bool bValidHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
-    if (bValidHit) Victim->ApplyCombatDamage(MeleeDamage);
-    ClientCombatFeedback(bValidHit);
+    ADeadlandsZombie* Zombie = bHit ? Cast<ADeadlandsZombie>(Hit.GetActor()) : nullptr;
+    const bool bPlayerHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
+    const bool bZombieHit = IsValid(Zombie) && Zombie->GetZombieHealth() > 0.f;
+    if (bPlayerHit) Victim->ApplyCombatDamage(MeleeDamage);
+    if (bZombieHit) Zombie->ReceiveMeleeDamage(MeleeDamage);
+    ClientCombatFeedback(bPlayerHit || bZombieHit);
 }
 
 void ADeadlandsCharacter::ClientCombatFeedback_Implementation(bool bHit)
