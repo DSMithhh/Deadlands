@@ -1,6 +1,7 @@
 #include "Survival/DeadlandsVitalsComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
+#include "DeadlandsCharacter.h"
 UDeadlandsVitalsComponent::UDeadlandsVitalsComponent()
 {
     SetIsReplicatedByDefault(true);
@@ -30,6 +31,15 @@ bool UDeadlandsVitalsComponent::Consume(FName ItemId)
     }
     return false;
 }
+void UDeadlandsVitalsComponent::RestoreAfterRespawn()
+{
+    if (!GetOwner() || !GetOwner()->HasAuthority()) return;
+    Stamina = 100.f;
+    Hunger = 100.f;
+    Thirst = 100.f;
+    bSprinting = false;
+    GetOwner()->ForceNetUpdate();
+}
 void UDeadlandsVitalsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -38,6 +48,12 @@ void UDeadlandsVitalsComponent::TickComponent(float DeltaTime, ELevelTick TickTy
     Stamina = FMath::Clamp(Stamina + (bSprinting ? -StaminaDrainPerSecond : StaminaRecoveryPerSecond * GetRecoveryMultiplier()) * DeltaTime, 0.f, 100.f);
     Hunger = FMath::Clamp(Hunger - HungerLossPerMinute * DeltaTime / 60.f, 0.f, 100.f);
     Thirst = FMath::Clamp(Thirst - ThirstLossPerMinute * DeltaTime / 60.f, 0.f, 100.f);
+    // Health consequences are applied only by the authoritative server.
+    if (ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(GetOwner()))
+    {
+        const int32 EmptyVitals = (Hunger <= 0.f ? 1 : 0) + (Thirst <= 0.f ? 1 : 0);
+        if (EmptyVitals > 0) Survivor->ApplySurvivalDamage(5.f * EmptyVitals * DeltaTime);
+    }
     if (bSprinting && PreviousStamina > 0.f && Stamina <= 0.f)
     {
         bSprinting = false;
