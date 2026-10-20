@@ -451,6 +451,11 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
         ApplySprintSpeed();
     }
     if (!IsLocallyControlled() || !InteractionPrompt || !FirstPersonCameraComponent || !GetWorld()) return;
+    if (Vitals)
+    {
+        InteractionPrompt->SetVitalsDebug(FString::Printf(TEXT("Stamina: %.1f | Hunger: %.1f | Thirst: %.1f | Sprint: %s"),
+            Vitals->GetStamina(), Vitals->GetHunger(), Vitals->GetThirst(), bIsSprinting ? TEXT("ON") : TEXT("OFF")));
+    }
     InteractionPromptCountdown -= DeltaSeconds;
     if (InteractionPromptCountdown > 0.f) return;
     InteractionPromptCountdown = 0.1f;

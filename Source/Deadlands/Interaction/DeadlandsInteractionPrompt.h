@@ -10,6 +10,8 @@ class DEADLANDS_API UDeadlandsInteractionPrompt : public UUserWidget
 public:
     virtual void NativeOnInitialized() override;
     void SetPrompt(const FString& Message);
+    void SetVitalsDebug(const FString& Message);
 private:
     UPROPERTY(Transient) TObjectPtr<UTextBlock> PromptText;
+    UPROPERTY(Transient) TObjectPtr<UTextBlock> VitalsDebugText;
 };

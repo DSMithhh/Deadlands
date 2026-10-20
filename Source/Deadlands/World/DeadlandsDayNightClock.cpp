@@ -22,7 +22,7 @@ void ADeadlandsDayNightClock::Tick(float DeltaSeconds)
     if (Sun)
     {
         const FRotator Existing = Sun->GetActorRotation();
-        Sun->SetActorRotation(FRotator(Hour * 15.f - 90.f, Existing.Yaw, Existing.Roll));
+        Sun->SetActorRotation(FRotator(90.f - Hour * 15.f, Existing.Yaw, Existing.Roll));
     }
 }
 void ADeadlandsDayNightClock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
