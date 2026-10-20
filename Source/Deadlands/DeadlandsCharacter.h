@@ -67,6 +67,8 @@ public:
     FString GetInventorySaveKey() const;
     TArray<FDeadlandsItemStack>& GetMutableItems() { return Items; }
     void NotifyItemsChanged();
+    /** Called by server-side survival vitals when hunger or thirst reaches zero. */
+    void ApplySurvivalDamage(float Amount);
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
@@ -142,6 +144,17 @@ protected:
 
     UPROPERTY(ReplicatedUsing=OnRep_Health, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
     float Health = 100.f;
+
+    UPROPERTY(ReplicatedUsing=OnRep_Dead, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
+    bool bIsDead = false;
+    UPROPERTY(EditDefaultsOnly, Category="Deadlands|Survival")
+    float RespawnDelaySeconds = 5.f;
+    FTransform InitialSpawnTransform;
+    FTimerHandle RespawnTimer;
+    void Die();
+    void RespawnSurvivor();
+    void ApplyDeathState();
+    UFUNCTION() void OnRep_Dead();
 
     void BeginSprint();
     void EndSprint();
