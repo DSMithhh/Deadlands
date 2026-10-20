@@ -21,8 +21,11 @@ void ADeadlandsDayNightClock::Tick(float DeltaSeconds)
     if (HasAuthority()) Hour = FMath::Fmod(Hour + DeltaSeconds * 24.f / FMath::Max(RealSecondsPerDay, 1.f), 24.f);
     if (Sun)
     {
-        const FRotator Existing = Sun->GetActorRotation();
-        Sun->SetActorRotation(FRotator(90.f - Hour * 15.f, Existing.Yaw, Existing.Roll));
+        // Build a deterministic sun orientation from time, not from the light's
+        // current Euler angles. The fixed yaw/roll avoids a pole flip at noon.
+        const float SolarPitchDegrees = 90.f - Hour * 15.f;
+        const FQuat SolarRotation = FRotator(SolarPitchDegrees, 0.f, 0.f).Quaternion();
+        Sun->SetActorRotation(SolarRotation);
     }
 }
 void ADeadlandsDayNightClock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
