@@ -69,6 +69,7 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 	GetCharacterMovement()->AirControl = 0.5f;
     GetCharacterMovement()->MaxWalkSpeed = SurvivalWalkSpeed;
     GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
+    GetCharacterMovement()->MaxWalkSpeedCrouched = 220.f;
 }
 
 void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -462,10 +463,12 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
             return FString::ChrN(Filled, TEXT('|')) + FString::ChrN(10 - Filled, TEXT('.'));
         };
         InteractionPrompt->SetVitalsDebug(FString::Printf(
-            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f"),
+            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f\nCROUCH: %s (requested: %s)"),
             *Bar(Health), Health, *Bar(Vitals->GetStamina()), Vitals->GetStamina(),
             *Bar(Vitals->GetHunger()), Vitals->GetHunger(),
-            *Bar(Vitals->GetThirst()), Vitals->GetThirst()));
+            *Bar(Vitals->GetThirst()), Vitals->GetThirst(),
+            bIsCrouched ? TEXT("YES") : TEXT("NO"),
+            GetCharacterMovement() && GetCharacterMovement()->bWantsToCrouch ? TEXT("YES") : TEXT("NO")));
     }
     InteractionPromptCountdown -= DeltaSeconds;
     if (InteractionPromptCountdown > 0.f) return;
@@ -491,7 +494,7 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
 void ADeadlandsCharacter::ToggleCrouch()
 {
     if (!IsLocallyControlled()) return;
-    if (bIsCrouched) UnCrouch();
+    if (GetCharacterMovement() && GetCharacterMovement()->bWantsToCrouch) UnCrouch();
     else
     {
         EndSprint();
