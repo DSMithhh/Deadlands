@@ -29,6 +29,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     TObjectPtr<UPointLightComponent> Light;
 
+    /** Stable unique name for this level-placed switch; if unset, use the actor name. */
+    UPROPERTY(EditInstanceOnly, Category="Deadlands|Persistence")
+    FName PersistenceId = NAME_None;
+
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRep_IsOn, BlueprintReadOnly, Category="Deadlands|Switch")
     bool bIsOn = true;
 
@@ -39,5 +43,6 @@ protected:
     void OnSwitchStateChanged(bool bNewIsOn);
 
 private:
+    FString GetPersistenceKey() const;
     void ApplyLightState();
 };
