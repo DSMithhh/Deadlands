@@ -57,6 +57,8 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {	
 	// Set up action bindings
+	// Bind Tab independently of the Enhanced Input mapping context.
+	PlayerInputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ADeadlandsCharacter::ToggleInventory);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (InteractAction)
