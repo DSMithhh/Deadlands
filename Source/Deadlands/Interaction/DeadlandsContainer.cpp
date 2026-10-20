@@ -68,24 +68,10 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
         return;
     }
 
-    // Typed items take priority: each F press moves one item into the player.
-    ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(InteractingCharacter);
-    if (Items.Num() > 0)
-    {
-        if (!Survivor || !Survivor->EnsureItemInventory()) return;
-        const FName ItemId = Items[0].ItemId;
-        if (FDeadlandsWorldPersistence::TransferItem(this,
-            TEXT("Container|") + GetPersistenceKey(), Survivor->GetInventorySaveKey(),
-            ItemId, 20, Items, Survivor->GetMutableItems()))
-        {
-            OnContainerItemsChanged();
-            Survivor->NotifyItemsChanged();
-            ForceNetUpdate();
-            UE_LOG(LogDeadlands, Log, TEXT("Transferred %s from %s"), *ItemId.ToString(), *GetNameSafe(this));
-        }
-        return;
-    }
+    // Typed containers are managed by the inventory UI. F only opens them.
+    if (InitialItems.Num() > 0 || Items.Num() > 0) return;
 
+    ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(InteractingCharacter);
     // Legacy supplies still work for containers without typed items.
     // Once opened, each F press transfers exactly one supply. When empty,
     // pressing F closes the container.
@@ -134,4 +120,37 @@ FString ADeadlandsContainer::GetPersistenceKey() const
 void ADeadlandsContainer::ApplyState()
 {
     OnContainerStateChanged(bOpen);
+}
+
+bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity)
+{
+    if (!HasAuthority() || !IsValid(Character) || !bOpen ||
+        Quantity < 1 || Quantity > 20 || FDeadlandsItems::MaxStack(ItemId) == 0 ||
+        !Character->EnsureItemInventory()) return false;
+
+    TArray<FDeadlandsItemStack>& PlayerItems = Character->GetMutableItems();
+    const FString ContainerKey = TEXT("Container|") + GetPersistenceKey();
+    const FString PlayerKey = Character->GetInventorySaveKey();
+    if (PlayerKey.IsEmpty()) return false;
+
+    bool bAny = false;
+    for (int32 Index = 0; Index < Quantity; ++Index)
+    {
+        const bool bSuccess = bTake
+            ? FDeadlandsWorldPersistence::TransferItem(this, ContainerKey, PlayerKey, ItemId,
+                Character->GetSupplyCapacity(), Items, PlayerItems)
+            : FDeadlandsWorldPersistence::TransferItem(this, PlayerKey, ContainerKey, ItemId,
+                1000, PlayerItems, Items);
+        if (!bSuccess) break;
+        bAny = true;
+    }
+    if (bAny)
+    {
+        OnContainerItemsChanged();
+        Character->NotifyItemsChanged();
+        ForceNetUpdate();
+        UE_LOG(LogDeadlands, Log, TEXT("Inventory %s: %s x%d"), bTake ? TEXT("take") : TEXT("put"),
+            *ItemId.ToString(), Quantity);
+    }
+    return bAny;
 }
