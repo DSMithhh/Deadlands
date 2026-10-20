@@ -73,3 +73,60 @@ bool FDeadlandsWorldPersistence::SaveSwitchState(
     }
     return bSaved;
 }
+
+bool FDeadlandsWorldPersistence::LoadActorFlag(
+    const UObject* WorldContext, const FString& ObjectId, const FString& Flag, bool& OutValue)
+{
+    if (!IsValid(WorldContext) || ObjectId.IsEmpty() || Flag.IsEmpty())
+    {
+        return false;
+    }
+    const UWorld* World = WorldContext->GetWorld();
+    if (!World || World->GetNetMode() == NM_Client)
+    {
+        return false;
+    }
+    if (const UDeadlandsWorldSaveGame* Save = Cast<UDeadlandsWorldSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(GetSlotName(WorldContext), 0)))
+    {
+        if (const bool* Found = Save->SavedActorFlags.Find(ObjectId + TEXT("|") + Flag))
+        {
+            OutValue = *Found;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool FDeadlandsWorldPersistence::SaveActorFlag(
+    const UObject* WorldContext, const FString& ObjectId, const FString& Flag, bool bValue)
+{
+    if (!IsValid(WorldContext) || ObjectId.IsEmpty() || Flag.IsEmpty())
+    {
+        return false;
+    }
+    const UWorld* World = WorldContext->GetWorld();
+    if (!World || World->GetNetMode() == NM_Client)
+    {
+        return false;
+    }
+    const FString Slot = GetSlotName(WorldContext);
+    UDeadlandsWorldSaveGame* Save = Cast<UDeadlandsWorldSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save)
+    {
+        Save = Cast<UDeadlandsWorldSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    }
+    if (!Save)
+    {
+        return false;
+    }
+    Save->SavedActorFlags.Add(ObjectId + TEXT("|") + Flag, bValue);
+    const bool bSuccess = UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+    if (!bSuccess)
+    {
+        UE_LOG(LogDeadlands, Error, TEXT("Could not persist %s flag %s"), *ObjectId, *Flag);
+    }
+    return bSuccess;
+}
