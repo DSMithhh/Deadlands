@@ -71,6 +71,8 @@ public:
     UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
     void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
+    void CloseInventory();
+
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
     /** Server-only transfer into this pawn's prototype inventory. */
