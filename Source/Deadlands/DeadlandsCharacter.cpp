@@ -23,6 +23,7 @@
 #include "Survival/DeadlandsVitalsComponent.h"
 #include "Interaction/DeadlandsInteractionPrompt.h"
 #include "Inventory/DeadlandsWorldPickup.h"
+#include "TimerManager.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -239,6 +240,7 @@ void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Items, COND_OwnerOnly);
     DOREPLIFETIME(ADeadlandsCharacter, bIsSprinting);
     DOREPLIFETIME(ADeadlandsCharacter, Health);
+    DOREPLIFETIME(ADeadlandsCharacter, bIsDead);
 }
 
 bool ADeadlandsCharacter::AddSupplies(int32 Amount)
@@ -411,11 +413,59 @@ void ADeadlandsCharacter::DebugHeal()
     if (IsLocallyControlled()) ServerDebugChangeHealth(25.f);
 }
 
+void ADeadlandsCharacter::ApplySurvivalDamage(float Amount)
+{
+    if (!HasAuthority() || bIsDead || Amount <= 0.f) return;
+    Health = FMath::Clamp(Health - Amount, 0.f, MaxHealth);
+    OnRep_Health();
+    ForceNetUpdate();
+    if (Health <= 0.f) Die();
+}
+
+void ADeadlandsCharacter::ApplyDeathState()
+{
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+    {
+        if (bIsDead) Movement->DisableMovement();
+        else Movement->SetMovementMode(MOVE_Walking);
+    }
+}
+
+void ADeadlandsCharacter::OnRep_Dead()
+{
+    ApplyDeathState();
+}
+
+void ADeadlandsCharacter::Die()
+{
+    if (!HasAuthority() || bIsDead) return;
+    bIsDead = true;
+    bIsSprinting = false;
+    if (Vitals) Vitals->SetSprinting(false);
+    ApplyDeathState();
+    ForceNetUpdate();
+    GetWorldTimerManager().SetTimer(RespawnTimer, this, &ADeadlandsCharacter::RespawnSurvivor, RespawnDelaySeconds, false);
+}
+
+void ADeadlandsCharacter::RespawnSurvivor()
+{
+    if (!HasAuthority()) return;
+    SetActorTransform(InitialSpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
+    Health = MaxHealth;
+    if (Vitals) Vitals->RestoreAfterRespawn();
+    bIsDead = false;
+    ApplyDeathState();
+    OnRep_Health();
+    ForceNetUpdate();
+}
+
 void ADeadlandsCharacter::ServerDebugChangeHealth_Implementation(float Delta)
 {
     // Temporary testing-only controls; remove before gameplay release.
     if (!FMath::IsFinite(Delta) || (Delta != 25.f && Delta != -25.f)) return;
+    if (bIsDead) return;
     Health = FMath::Clamp(Health + Delta, 0.f, MaxHealth);
+    if (Health <= 0.f) Die();
     OnRep_Health();
     ForceNetUpdate();
 }
@@ -429,6 +479,7 @@ void ADeadlandsCharacter::OnRep_Health()
 void ADeadlandsCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    if (HasAuthority()) InitialSpawnTransform = GetActorTransform();
     if (FirstPersonCameraComponent)
     {
         StandingCameraRelativeLocation = FirstPersonCameraComponent->GetRelativeLocation();
@@ -483,12 +534,13 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
             return FString::ChrN(Filled, TEXT('|')) + FString::ChrN(10 - Filled, TEXT('.'));
         };
         InteractionPrompt->SetVitalsDebug(FString::Printf(
-            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f\nCROUCH: %s (requested: %s)"),
+            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f\nCROUCH: %s (requested: %s)\n%s"),
             *Bar(Health), Health, *Bar(Vitals->GetStamina()), Vitals->GetStamina(),
             *Bar(Vitals->GetHunger()), Vitals->GetHunger(),
             *Bar(Vitals->GetThirst()), Vitals->GetThirst(),
             bIsCrouched ? TEXT("YES") : TEXT("NO"),
-            GetCharacterMovement() && GetCharacterMovement()->bWantsToCrouch ? TEXT("YES") : TEXT("NO")));
+            GetCharacterMovement() && GetCharacterMovement()->bWantsToCrouch ? TEXT("YES") : TEXT("NO"),
+            bIsDead ? TEXT("DEAD - RESPAWNING SOON") : TEXT("")));
     }
     InteractionPromptCountdown -= DeltaSeconds;
     if (InteractionPromptCountdown > 0.f) return;
@@ -523,22 +575,29 @@ void ADeadlandsCharacter::ToggleCrouch()
 }
 void ADeadlandsCharacter::RequestConsumeItem(FName ItemId)
 {
-    if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water")))
+    if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water") || ItemId == TEXT("Medicine")))
         ServerConsumeItem(ItemId);
 }
 void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
 {
-    if (!Vitals || !EnsureItemInventory()) return;
-    if (ItemId != TEXT("Food") && ItemId != TEXT("Water")) return;
+    if (bIsDead || !Vitals || !EnsureItemInventory()) return;
+    if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine")) return;
     TArray<FDeadlandsItemStack> NewItems = Items;
     if (!FDeadlandsItems::RemoveOne(NewItems, ItemId)) return;
     // Only consume when the corresponding vital needs replenishment.
     if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
-        (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f)) return;
+        (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f) ||
+        (ItemId == TEXT("Medicine") && Health >= MaxHealth)) return;
     if (!FDeadlandsWorldPersistence::SaveInventory(this, GetInventorySaveKey(), NewItems)) return;
     Items = MoveTemp(NewItems);
-    Vitals->Consume(ItemId);
+    if (ItemId == TEXT("Medicine"))
+    {
+        Health = FMath::Min(MaxHealth, Health + 40.f);
+        OnRep_Health();
+    }
+    else Vitals->Consume(ItemId);
     NotifyItemsChanged();
+    ForceNetUpdate();
 }
 void ADeadlandsCharacter::RequestDropItem(FName ItemId)
 {
@@ -547,7 +606,7 @@ void ADeadlandsCharacter::RequestDropItem(FName ItemId)
 }
 void ADeadlandsCharacter::ServerDropItem_Implementation(FName ItemId)
 {
-    if (!GetWorld() || !EnsureItemInventory() || FDeadlandsItems::MaxStack(ItemId) == 0) return;
+    if (bIsDead || !GetWorld() || !EnsureItemInventory() || FDeadlandsItems::MaxStack(ItemId) == 0) return;
     TArray<FDeadlandsItemStack> NewItems = Items;
     if (!FDeadlandsItems::RemoveOne(NewItems, ItemId)) return;
     const FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 110.f + FVector(0.f, 0.f, 35.f);
