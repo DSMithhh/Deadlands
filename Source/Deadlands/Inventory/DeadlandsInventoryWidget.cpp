@@ -152,3 +152,14 @@ FReply UDeadlandsInventoryWidget::NativeOnKeyDown(const FGeometry& Geometry, con
     }
     return Super::NativeOnKeyDown(Geometry, Event);
 }
+
+FReply UDeadlandsInventoryWidget::NativeOnPreviewKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
+{
+    // Preview runs before focused child buttons/combo boxes can consume the key.
+    if (Event.GetKey() == EKeys::Tab || Event.GetKey() == EKeys::Escape)
+    {
+        if (Survivor) Survivor->CloseInventory();
+        return FReply::Handled();
+    }
+    return Super::NativeOnPreviewKeyDown(Geometry, Event);
+}
