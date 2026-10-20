@@ -36,4 +36,6 @@ private:
     UFUNCTION() void PutOne();
     UFUNCTION() void TakeStack();
     UFUNCTION() void PutStack();
+    UFUNCTION() void ConsumeSelected();
+    UFUNCTION() void DropSelected();
 };
