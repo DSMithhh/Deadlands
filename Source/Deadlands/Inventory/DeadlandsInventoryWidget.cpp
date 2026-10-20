@@ -80,7 +80,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
     UButton* ConsumeButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* ConsumeLabel = WidgetTree->ConstructWidget<UTextBlock>();
-    ConsumeLabel->SetText(FText::FromString(TEXT(" EAT / DRINK SELECTED ")));
+    ConsumeLabel->SetText(FText::FromString(TEXT(" USE SELECTED (FOOD / WATER / MEDICINE) ")));
     ConsumeButton->AddChild(ConsumeLabel);
     Column->AddChildToVerticalBox(ConsumeButton);
     ConsumeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ConsumeSelected);
