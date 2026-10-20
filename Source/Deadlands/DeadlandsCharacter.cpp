@@ -456,8 +456,16 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
     if (!IsLocallyControlled() || !InteractionPrompt || !FirstPersonCameraComponent || !GetWorld()) return;
     if (Vitals)
     {
-        InteractionPrompt->SetVitalsDebug(FString::Printf(TEXT("Stamina: %.1f | Hunger: %.1f | Thirst: %.1f | Sprint: %s"),
-            Vitals->GetStamina(), Vitals->GetHunger(), Vitals->GetThirst(), bIsSprinting ? TEXT("ON") : TEXT("OFF")));
+        auto Bar = [](float Value) -> FString
+        {
+            const int32 Filled = FMath::Clamp(FMath::RoundToInt(Value / 10.f), 0, 10);
+            return FString::ChrN(Filled, TEXT('|')) + FString::ChrN(10 - Filled, TEXT('.'));
+        };
+        InteractionPrompt->SetVitalsDebug(FString::Printf(
+            TEXT("HEALTH   [%s] %.0f\nSTAMINA  [%s] %.0f\nHUNGER   [%s] %.0f\nTHIRST   [%s] %.0f"),
+            *Bar(Health), Health, *Bar(Vitals->GetStamina()), Vitals->GetStamina(),
+            *Bar(Vitals->GetHunger()), Vitals->GetHunger(),
+            *Bar(Vitals->GetThirst()), Vitals->GetThirst()));
     }
     InteractionPromptCountdown -= DeltaSeconds;
     if (InteractionPromptCountdown > 0.f) return;
