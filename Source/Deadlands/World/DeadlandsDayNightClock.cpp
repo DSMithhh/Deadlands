@@ -1,11 +1,15 @@
 #include "World/DeadlandsDayNightClock.h"
 #include "Engine/DirectionalLight.h"
+#include "Components/SceneComponent.h"
 #include "Net/UnrealNetwork.h"
 ADeadlandsDayNightClock::ADeadlandsDayNightClock()
 {
+    SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+    SetRootComponent(SceneRoot);
     PrimaryActorTick.bCanEverTick = true;
     bReplicates = true;
     SetNetUpdateFrequency(2.f);
+    bAlwaysRelevant = true;
 }
 void ADeadlandsDayNightClock::BeginPlay()
 {
