@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TimerManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "DeadlandsZombieBootstrap.generated.h"
 
