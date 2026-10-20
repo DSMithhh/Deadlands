@@ -3,6 +3,7 @@
 #include "Components/PointLightComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Deadlands.h"
+#include "Persistence/DeadlandsWorldPersistence.h"
 
 ADeadlandsLightSwitch::ADeadlandsLightSwitch()
 {
@@ -29,6 +30,17 @@ void ADeadlandsLightSwitch::BeginPlay()
     if (HasAuthority() && !GetIsReplicated())
     {
         SetReplicates(true);
+    }
+
+    if (HasAuthority())
+    {
+        bool bSavedState = bIsOn;
+        if (FDeadlandsWorldPersistence::LoadSwitchState(this, GetPersistenceKey(), bSavedState))
+        {
+            bIsOn = bSavedState;
+            UE_LOG(LogDeadlands, Log, TEXT("Restored switch %s to %s"), *GetPersistenceKey(),
+                bIsOn ? TEXT("ON") : TEXT("OFF"));
+        }
     }
 
     ApplyLightState();
@@ -59,6 +71,10 @@ void ADeadlandsLightSwitch::Interact_Implementation(ACharacter* InteractingChara
     bIsOn = !bIsOn;
     UE_LOG(LogDeadlands, Log, TEXT("Switch SERVER %s state: %s | Replicates=%d"), *GetPathName(), bIsOn ? TEXT("ON") : TEXT("OFF"), GetIsReplicated() ? 1 : 0);
     ApplyLightState();
+    if (!FDeadlandsWorldPersistence::SaveSwitchState(this, GetPersistenceKey(), bIsOn))
+    {
+        UE_LOG(LogDeadlands, Warning, TEXT("Switch state not persisted: %s"), *GetPersistenceKey());
+    }
     ForceNetUpdate();
 }
 
@@ -72,4 +88,12 @@ void ADeadlandsLightSwitch::ApplyLightState()
 {
     Light->SetVisibility(bIsOn);
     OnSwitchStateChanged(bIsOn);
+}
+
+FString ADeadlandsLightSwitch::GetPersistenceKey() const
+{
+    // A stable, per-instance ID is recommended when adding multiple switches.
+    // The native actor name is sufficient for our initial level-placed test switch,
+    // but may change if the actor is renamed or recreated.
+    return PersistenceId.IsNone() ? GetName() : PersistenceId.ToString();
 }
