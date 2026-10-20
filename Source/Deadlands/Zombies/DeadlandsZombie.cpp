@@ -78,9 +78,14 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
             Nearest->ApplyCombatDamage(AttackDamage);
         }
     }
-    else if (AI)
+    else
     {
-        AI->MoveToActor(Nearest, AttackRange * 0.75f);
+        // Prototype direct pursuit does not require a Nav Mesh Bounds Volume.
+        // CharacterMovement still respects physical collisions; obstacle pathfinding comes later.
+        if (AI) AI->StopMovement();
+        FVector Toward = Nearest->GetActorLocation() - GetActorLocation();
+        Toward.Z = 0.f;
+        if (!Toward.IsNearlyZero()) AddMovementInput(Toward.GetSafeNormal(), 1.f);
     }
 }
 
