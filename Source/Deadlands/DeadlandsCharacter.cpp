@@ -137,7 +137,11 @@ void ADeadlandsCharacter::TryInteract()
     const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 250.f;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsInteraction), false, this);
-    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    // A small sweep is more forgiving than a single pixel-perfect ray.
+    // It also handles narrow targets viewed at oblique angles.
+    const FCollisionShape InteractionShape = FCollisionShape::MakeSphere(12.f);
+    if (GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
+        ECC_Visibility, InteractionShape, Params))
     {
         AActor* Target = Hit.GetActor();
         if (IsValid(Target) && Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()))
