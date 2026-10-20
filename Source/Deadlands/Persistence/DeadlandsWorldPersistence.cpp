@@ -130,3 +130,46 @@ bool FDeadlandsWorldPersistence::SaveActorFlag(
     }
     return bSuccess;
 }
+
+bool FDeadlandsWorldPersistence::LoadContainerSupplies(
+    const UObject* WorldContext, const FString& ObjectId, int32& OutAmount)
+{
+    if (!IsValid(WorldContext) || ObjectId.IsEmpty()) return false;
+    const UWorld* World = WorldContext->GetWorld();
+    if (!World || World->GetNetMode() == NM_Client) return false;
+
+    const UDeadlandsWorldSaveGame* Save = Cast<UDeadlandsWorldSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(GetSlotName(WorldContext), 0));
+    if (!Save) return false;
+    if (const int32* Found = Save->SavedContainerSupplies.Find(ObjectId))
+    {
+        OutAmount = *Found;
+        return true;
+    }
+    return false;
+}
+
+bool FDeadlandsWorldPersistence::SaveContainerSupplies(
+    const UObject* WorldContext, const FString& ObjectId, int32 Amount)
+{
+    if (!IsValid(WorldContext) || ObjectId.IsEmpty() || Amount < 0) return false;
+    const UWorld* World = WorldContext->GetWorld();
+    if (!World || World->GetNetMode() == NM_Client) return false;
+
+    const FString Slot = GetSlotName(WorldContext);
+    UDeadlandsWorldSaveGame* Save = Cast<UDeadlandsWorldSaveGame>(
+        UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save)
+    {
+        Save = Cast<UDeadlandsWorldSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    }
+    if (!Save) return false;
+    Save->SavedContainerSupplies.Add(ObjectId, Amount);
+    const bool bSaved = UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+    if (!bSaved)
+    {
+        UE_LOG(LogDeadlands, Error, TEXT("Failed to persist supplies for %s"), *ObjectId);
+    }
+    return bSaved;
+}
