@@ -78,6 +78,18 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PutStackButton->AddChild(PutStackLabel);
     TakeStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeStack);
     PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
+    UButton* ConsumeButton = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* ConsumeLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    ConsumeLabel->SetText(FText::FromString(TEXT(" EAT / DRINK SELECTED ")));
+    ConsumeButton->AddChild(ConsumeLabel);
+    Column->AddChildToVerticalBox(ConsumeButton);
+    ConsumeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ConsumeSelected);
+    UButton* DropButton = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* DropLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    DropLabel->SetText(FText::FromString(TEXT(" DROP ONE SELECTED ")));
+    DropButton->AddChild(DropLabel);
+    Column->AddChildToVerticalBox(DropButton);
+    DropButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::DropSelected);
     Refresh();
 }
 
@@ -162,4 +174,15 @@ FReply UDeadlandsInventoryWidget::NativeOnPreviewKeyDown(const FGeometry& Geomet
         return FReply::Handled();
     }
     return Super::NativeOnPreviewKeyDown(Geometry, Event);
+}
+
+void UDeadlandsInventoryWidget::ConsumeSelected()
+{
+    if (Survivor && ItemPicker)
+        Survivor->RequestConsumeItem(FName(*ItemPicker->GetSelectedOption()));
+}
+void UDeadlandsInventoryWidget::DropSelected()
+{
+    if (Survivor && ItemPicker)
+        Survivor->RequestDropItem(FName(*ItemPicker->GetSelectedOption()));
 }
