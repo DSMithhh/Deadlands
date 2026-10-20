@@ -9,6 +9,8 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Deadlands.h"
+#include "Interaction/DeadlandsInteractable.h"
+#include "Engine/World.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -49,6 +51,11 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
+		if (InteractAction)
+		{
+			EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ADeadlandsCharacter::TryInteract);
+		}
+
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ADeadlandsCharacter::DoJumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ADeadlandsCharacter::DoJumpEnd);
@@ -117,4 +124,49 @@ void ADeadlandsCharacter::DoJumpEnd()
 {
 	// pass StopJumping to the character
 	StopJumping();
+}
+
+void ADeadlandsCharacter::TryInteract()
+{
+    if (!IsLocallyControlled() || !GetWorld() || !FirstPersonCameraComponent)
+    {
+        return;
+    }
+
+    const FVector Start = FirstPersonCameraComponent->GetComponentLocation();
+    const FVector End = Start + FirstPersonCameraComponent->GetForwardVector() * 250.f;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsInteraction), false, this);
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        AActor* Target = Hit.GetActor();
+        if (IsValid(Target) && Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()))
+        {
+            ServerTryInteract(Target);
+        }
+    }
+}
+
+void ADeadlandsCharacter::ServerTryInteract_Implementation(AActor* RequestedTarget)
+{
+    if (!IsValid(RequestedTarget) || !RequestedTarget->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()) || !GetWorld())
+    {
+        return;
+    }
+
+    // Independently verify reach and line of sight on the authoritative server.
+    // The controller's replicated control rotation supplies the server-side look direction.
+    const FVector Start = GetPawnViewLocation();
+    const FVector End = Start + GetBaseAimRotation().Vector() * 250.f;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsServerInteraction), false, this);
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params) || Hit.GetActor() != RequestedTarget)
+    {
+        return;
+    }
+
+    if (IDeadlandsInteractable::Execute_CanInteract(RequestedTarget, this))
+    {
+        IDeadlandsInteractable::Execute_Interact(RequestedTarget, this);
+    }
 }
