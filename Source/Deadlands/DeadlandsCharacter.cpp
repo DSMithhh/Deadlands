@@ -22,6 +22,7 @@
 #include "InputCoreTypes.h"
 #include "Survival/DeadlandsVitalsComponent.h"
 #include "Interaction/DeadlandsInteractionPrompt.h"
+#include "Inventory/DeadlandsWorldPickup.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -67,6 +68,7 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
     GetCharacterMovement()->MaxWalkSpeed = SurvivalWalkSpeed;
+    GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
 }
 
 void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -79,6 +81,7 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ADeadlandsCharacter::ToggleFlashlight);
     PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
+    PlayerInputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &ADeadlandsCharacter::ToggleCrouch);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (InteractAction)
@@ -475,4 +478,58 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
         Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()) &&
         IDeadlandsInteractable::Execute_CanInteract(Target, this);
     InteractionPrompt->SetPrompt(bInteractable ? TEXT("[F] Interact") : TEXT(""));
+}
+
+void ADeadlandsCharacter::ToggleCrouch()
+{
+    if (!IsLocallyControlled()) return;
+    if (bIsCrouched) UnCrouch();
+    else
+    {
+        EndSprint();
+        Crouch();
+    }
+}
+void ADeadlandsCharacter::RequestConsumeItem(FName ItemId)
+{
+    if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water")))
+        ServerConsumeItem(ItemId);
+}
+void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
+{
+    if (!Vitals || !EnsureItemInventory()) return;
+    if (ItemId != TEXT("Food") && ItemId != TEXT("Water")) return;
+    TArray<FDeadlandsItemStack> NewItems = Items;
+    if (!FDeadlandsItems::RemoveOne(NewItems, ItemId)) return;
+    // Only consume when the corresponding vital needs replenishment.
+    if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
+        (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f)) return;
+    if (!FDeadlandsWorldPersistence::SaveInventory(this, GetInventorySaveKey(), NewItems)) return;
+    Items = MoveTemp(NewItems);
+    Vitals->Consume(ItemId);
+    NotifyItemsChanged();
+}
+void ADeadlandsCharacter::RequestDropItem(FName ItemId)
+{
+    if (IsLocallyControlled() && FDeadlandsItems::MaxStack(ItemId) > 0)
+        ServerDropItem(ItemId);
+}
+void ADeadlandsCharacter::ServerDropItem_Implementation(FName ItemId)
+{
+    if (!GetWorld() || !EnsureItemInventory() || FDeadlandsItems::MaxStack(ItemId) == 0) return;
+    TArray<FDeadlandsItemStack> NewItems = Items;
+    if (!FDeadlandsItems::RemoveOne(NewItems, ItemId)) return;
+    const FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 110.f + FVector(0.f, 0.f, 35.f);
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    ADeadlandsWorldPickup* Pickup = GetWorld()->SpawnActor<ADeadlandsWorldPickup>(ADeadlandsWorldPickup::StaticClass(), SpawnLocation, FRotator::ZeroRotator, Params);
+    if (!Pickup) return;
+    Pickup->InitializePickup(ItemId);
+    if (!FDeadlandsWorldPersistence::SaveInventory(this, GetInventorySaveKey(), NewItems))
+    {
+        Pickup->Destroy();
+        return;
+    }
+    Items = MoveTemp(NewItems);
+    NotifyItemsChanged();
 }
