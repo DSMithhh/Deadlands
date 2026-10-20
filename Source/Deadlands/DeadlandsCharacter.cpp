@@ -14,6 +14,11 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
 #include "Persistence/DeadlandsWorldPersistence.h"
+#include "Interaction/DeadlandsContainer.h"
+#include "Inventory/DeadlandsInventoryWidget.h"
+#include "GameFramework/PlayerController.h"
+#include "Components/InputComponent.h"
+#include "InputCoreTypes.h"
 
 ADeadlandsCharacter::ADeadlandsCharacter()
 {
@@ -149,6 +154,12 @@ void ADeadlandsCharacter::TryInteract()
         AActor* Target = Hit.GetActor();
         if (IsValid(Target) && Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()))
         {
+            if (ADeadlandsContainer* Container = Cast<ADeadlandsContainer>(Target))
+            {
+                ShowInventory(Container);
+                ServerTryInteract(Target);
+                return;
+            }
             ServerTryInteract(Target);
         }
     }
@@ -249,4 +260,60 @@ void ADeadlandsCharacter::NotifyItemsChanged()
 void ADeadlandsCharacter::OnRep_Items()
 {
     OnItemsChanged();
+}
+
+void ADeadlandsCharacter::ToggleInventory()
+{
+    if (!IsLocallyControlled()) return;
+    if (InventoryWidget && InventoryWidget->IsInViewport())
+    {
+        InventoryWidget->RemoveFromParent();
+        if (APlayerController* PC = Cast<APlayerController>(GetController()))
+        {
+            PC->SetInputMode(FInputModeGameOnly());
+            PC->bShowMouseCursor = false;
+        }
+        return;
+    }
+    ShowInventory(nullptr);
+}
+
+void ADeadlandsCharacter::ShowInventory(ADeadlandsContainer* Container)
+{
+    if (!IsLocallyControlled()) return;
+    if (!InventoryWidget)
+        InventoryWidget = CreateWidget<UDeadlandsInventoryWidget>(
+            Cast<APlayerController>(GetController()), UDeadlandsInventoryWidget::StaticClass());
+    if (!InventoryWidget) return;
+    CurrentContainer = Container;
+    InventoryWidget->SetInventoryContext(this, Container);
+    if (!InventoryWidget->IsInViewport()) InventoryWidget->AddToViewport(20);
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        FInputModeGameAndUI Mode;
+        Mode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(Mode);
+        PC->bShowMouseCursor = true;
+    }
+}
+
+void ADeadlandsCharacter::RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity)
+{
+    if (!IsLocallyControlled() || !IsValid(Container) || Quantity < 1 || Quantity > 20 ||
+        FDeadlandsItems::MaxStack(ItemId) == 0) return;
+    ServerTransferItems(Container, ItemId, bTake, Quantity);
+}
+
+void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity)
+{
+    if (!IsValid(Container) || Quantity < 1 || Quantity > 20 ||
+        FDeadlandsItems::MaxStack(ItemId) == 0 || !EnsureItemInventory()) return;
+    const FVector Eye = GetPawnViewLocation();
+    const FBox Bounds = Container->GetComponentsBoundingBox();
+    if (FVector::DistSquared(Eye, Bounds.GetClosestPointTo(Eye)) > FMath::Square(250.f)) return;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsInventoryTransfer), false, this);
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Bounds.GetCenter(), ECC_Visibility, Params) ||
+        Hit.GetActor() != Container) return;
+    Container->TransferItemsToCharacter(this, ItemId, bTake, Quantity);
 }
