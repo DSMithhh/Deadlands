@@ -17,6 +17,7 @@ class DEADLANDS_API UDeadlandsInventoryWidget : public UUserWidget
 public:
     void SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container);
     virtual void NativeConstruct() override;
+    virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
