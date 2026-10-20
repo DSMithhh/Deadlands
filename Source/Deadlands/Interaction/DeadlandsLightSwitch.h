@@ -1,0 +1,41 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "Interaction/DeadlandsInteractable.h"
+#include "DeadlandsLightSwitch.generated.h"
+
+class UStaticMeshComponent;
+class UPointLightComponent;
+
+UCLASS(Blueprintable)
+class DEADLANDS_API ADeadlandsLightSwitch : public AActor, public IDeadlandsInteractable
+{
+    GENERATED_BODY()
+
+public:
+    ADeadlandsLightSwitch();
+
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual bool CanInteract_Implementation(ACharacter* InteractingCharacter) const override;
+    virtual void Interact_Implementation(ACharacter* InteractingCharacter) override;
+
+protected:
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UStaticMeshComponent> SwitchMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+    TObjectPtr<UPointLightComponent> Light;
+
+    UPROPERTY(EditAnywhere, ReplicatedUsing=OnRep_IsOn, BlueprintReadOnly, Category="Deadlands|Switch")
+    bool bIsOn = true;
+
+    UFUNCTION()
+    void OnRep_IsOn();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Switch")
+    void OnSwitchStateChanged(bool bNewIsOn);
+
+private:
+    void ApplyLightState();
+};
