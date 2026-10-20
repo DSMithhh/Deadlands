@@ -323,7 +323,7 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
 
 void ADeadlandsZombie::ApplyDeathVisual()
 {
-    if (PlaceholderBody) PlaceholderBody->SetVisibility(!bDead);
+    // Keep the inert placeholder visible as a temporary corpse until cleanup.
     if (bDead) SetActorTickEnabled(false);
 }
 void ADeadlandsZombie::OnRep_Health() {}
