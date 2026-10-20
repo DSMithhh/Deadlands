@@ -9,6 +9,9 @@
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Input/Reply.h"
 
 void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container)
 {
@@ -21,7 +24,12 @@ void UDeadlandsInventoryWidget::NativeConstruct()
 {
     Super::NativeConstruct();
     UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-    WidgetTree->RootWidget = Border;
+    UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>();
+    WidgetTree->RootWidget = Canvas;
+    UCanvasPanelSlot* PanelSlot = Canvas->AddChildToCanvas(Border);
+    PanelSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+    PanelSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+    PanelSlot->SetAutoSize(true);
     Border->SetPadding(FMargin(24.f));
     Border->SetBrushColor(FLinearColor(0.025f, 0.035f, 0.045f, 0.96f));
     UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
