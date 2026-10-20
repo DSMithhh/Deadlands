@@ -3,6 +3,7 @@
 #include "DeadlandsCharacter.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
@@ -43,6 +44,16 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
+    Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("SurvivalFlashlight"));
+    Flashlight->SetupAttachment(FirstPersonCameraComponent);
+    Flashlight->SetRelativeLocation(FVector(15.f, 0.f, -8.f));
+    Flashlight->SetIntensity(6500.f);
+    Flashlight->SetAttenuationRadius(1800.f);
+    Flashlight->SetInnerConeAngle(16.f);
+    Flashlight->SetOuterConeAngle(32.f);
+    Flashlight->SetVisibility(false);
+    Flashlight->SetOnlyOwnerSee(true);
+
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -52,6 +63,7 @@ ADeadlandsCharacter::ADeadlandsCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+    GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
 void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -59,6 +71,11 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	// Set up action bindings
 	// Bind Tab independently of the Enhanced Input mapping context.
 	PlayerInputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ADeadlandsCharacter::ToggleInventory);
+    PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ADeadlandsCharacter::BeginSprint);
+    PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ADeadlandsCharacter::EndSprint);
+    PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ADeadlandsCharacter::ToggleFlashlight);
+    PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
+    PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (InteractAction)
@@ -213,6 +230,8 @@ void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Supplies, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Items, COND_OwnerOnly);
+    DOREPLIFETIME(ADeadlandsCharacter, bIsSprinting);
+    DOREPLIFETIME(ADeadlandsCharacter, Health);
 }
 
 bool ADeadlandsCharacter::AddSupplies(int32 Amount)
@@ -327,4 +346,71 @@ void ADeadlandsCharacter::CloseInventory()
         PC->SetInputMode(FInputModeGameOnly());
         PC->bShowMouseCursor = false;
     }
+}
+
+void ADeadlandsCharacter::ApplySprintSpeed()
+{
+    if (GetCharacterMovement())
+        GetCharacterMovement()->MaxWalkSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+}
+
+void ADeadlandsCharacter::BeginSprint()
+{
+    if (!IsLocallyControlled()) return;
+    bIsSprinting = true;
+    ApplySprintSpeed();
+    if (!HasAuthority()) ServerSetSprinting(true);
+}
+
+void ADeadlandsCharacter::EndSprint()
+{
+    if (!IsLocallyControlled()) return;
+    bIsSprinting = false;
+    ApplySprintSpeed();
+    if (!HasAuthority()) ServerSetSprinting(false);
+}
+
+void ADeadlandsCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
+{
+    bIsSprinting = bNewSprinting;
+    ApplySprintSpeed();
+    ForceNetUpdate();
+}
+
+void ADeadlandsCharacter::OnRep_Sprinting()
+{
+    ApplySprintSpeed();
+}
+
+void ADeadlandsCharacter::ToggleFlashlight()
+{
+    if (!IsLocallyControlled() || !Flashlight) return;
+    bFlashlightOn = !bFlashlightOn;
+    Flashlight->SetVisibility(bFlashlightOn);
+    UE_LOG(LogDeadlands, Log, TEXT("Flashlight %s"), bFlashlightOn ? TEXT("ON") : TEXT("OFF"));
+}
+
+void ADeadlandsCharacter::DebugDamage()
+{
+    if (IsLocallyControlled()) ServerDebugChangeHealth(-25.f);
+}
+
+void ADeadlandsCharacter::DebugHeal()
+{
+    if (IsLocallyControlled()) ServerDebugChangeHealth(25.f);
+}
+
+void ADeadlandsCharacter::ServerDebugChangeHealth_Implementation(float Delta)
+{
+    // Temporary testing-only controls; remove before gameplay release.
+    if (!FMath::IsFinite(Delta) || (Delta != 25.f && Delta != -25.f)) return;
+    Health = FMath::Clamp(Health + Delta, 0.f, MaxHealth);
+    OnRep_Health();
+    ForceNetUpdate();
+}
+
+void ADeadlandsCharacter::OnRep_Health()
+{
+    OnHealthChanged(Health, MaxHealth);
+    UE_LOG(LogDeadlands, Log, TEXT("%s health: %.0f / %.0f"), *GetNameSafe(this), Health, MaxHealth);
 }
