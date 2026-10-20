@@ -52,7 +52,6 @@ ADeadlandsCharacter::ADeadlandsCharacter()
     Flashlight->SetInnerConeAngle(16.f);
     Flashlight->SetOuterConeAngle(32.f);
     Flashlight->SetVisibility(false);
-    Flashlight->SetOnlyOwnerSee(true);
 
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
