@@ -429,6 +429,11 @@ void ADeadlandsCharacter::OnRep_Health()
 void ADeadlandsCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    if (FirstPersonCameraComponent)
+    {
+        StandingCameraRelativeLocation = FirstPersonCameraComponent->GetRelativeLocation();
+        bCameraBaseCaptured = true;
+    }
     if (IsLocallyControlled())
     {
         if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -442,6 +447,14 @@ void ADeadlandsCharacter::BeginPlay()
 void ADeadlandsCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    // The first-person camera is attached to the head mesh rather than the capsule.
+    // Move it locally so crouch is visible even before crouch animations exist.
+    if (IsLocallyControlled() && FirstPersonCameraComponent && bCameraBaseCaptured)
+    {
+        const FVector Target = StandingCameraRelativeLocation + FVector(0.f, 0.f, bIsCrouched ? -40.f : 0.f);
+        FirstPersonCameraComponent->SetRelativeLocation(FMath::VInterpTo(
+            FirstPersonCameraComponent->GetRelativeLocation(), Target, DeltaSeconds, 10.f));
+    }
     if (HasAuthority() && bIsSprinting && Vitals && !Vitals->CanSprint())
     {
         bIsSprinting = false;
