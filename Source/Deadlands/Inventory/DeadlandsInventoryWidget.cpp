@@ -21,9 +21,9 @@ void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Charact
     Refresh();
 }
 
-void UDeadlandsInventoryWidget::NativeConstruct()
+void UDeadlandsInventoryWidget::NativeOnInitialized()
 {
-    Super::NativeConstruct();
+    Super::NativeOnInitialized();
     SetIsFocusable(true);
     UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
     UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>();
