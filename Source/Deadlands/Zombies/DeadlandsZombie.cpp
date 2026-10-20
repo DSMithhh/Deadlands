@@ -37,6 +37,8 @@ void ADeadlandsZombie::BeginPlay()
     if (HasAuthority())
     {
         Health = MaxHealth;
+        HomeLocation = GetActorLocation();
+        NextWanderTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
         GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
     }
 }
@@ -55,24 +57,76 @@ bool ADeadlandsZombie::CanSeePlayer(const ADeadlandsCharacter* Player) const
     return !bBlocked || Hit.GetActor() == Player;
 }
 
-FVector ADeadlandsZombie::ChooseSteering(const FVector& Desired) const
+void ADeadlandsZombie::SetZombieState(EDeadlandsZombieState NewState)
 {
-    if (!GetWorld()) return Desired;
-    const FVector Start = GetActorLocation() + FVector(0.f, 0.f, 45.f);
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsZombieSteering), false, this);
-    auto Clear = [&](const FVector& Dir)
+    if (ZombieState != NewState)
     {
-        FHitResult Hit;
-        return !GetWorld()->SweepSingleByChannel(Hit, Start, Start + Dir * 140.f,
-            FQuat::Identity, ECC_WorldStatic, FCollisionShape::MakeSphere(28.f), Params);
-    };
-    if (Clear(Desired)) return Desired;
-    // Lightweight no-navmesh obstacle avoidance for the test level.
-    const FVector Left = Desired.RotateAngleAxis(65.f, FVector::UpVector);
-    const FVector Right = Desired.RotateAngleAxis(-65.f, FVector::UpVector);
-    if (Clear(Left)) return Left;
-    if (Clear(Right)) return Right;
-    return FVector::ZeroVector;
+        ZombieState = NewState;
+        ForceNetUpdate();
+    }
+}
+
+void ADeadlandsZombie::NavigateTo(const FVector& Destination, float AcceptanceRadius, float Now)
+{
+    if (Now < NextDecisionTime) return;
+    NextDecisionTime = Now + 0.55f;
+    AAIController* AI = Cast<AAIController>(GetController());
+    if (!AI) return;
+    UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!Nav) { AI->StopMovement(); return; }
+    FNavLocation Projected;
+    if (Nav->ProjectPointToNavigation(Destination, Projected, FVector(200.f, 200.f, 300.f)))
+    {
+        AI->MoveToLocation(Projected.Location, AcceptanceRadius, true, true, false, true, nullptr, true);
+    }
+    else AI->StopMovement();
+}
+
+void ADeadlandsZombie::UpdatePassiveBehavior(float Now)
+{
+    if (bSearching)
+    {
+        SetZombieState(EDeadlandsZombieState::Searching);
+        GetCharacterMovement()->MaxWalkSpeed = WalkSpeed * 0.65f;
+        if (FVector::DistSquared2D(GetActorLocation(), SearchDestination) < FMath::Square(110.f))
+        {
+            SearchDestination = LastKnownLocation + FVector(
+                FMath::FRandRange(-220.f, 220.f), FMath::FRandRange(-220.f, 220.f), 0.f);
+        }
+        NavigateTo(SearchDestination, 90.f, Now);
+        if (Now < SearchEndTime) return;
+        bSearching = false;
+        NextWanderTime = Now + 2.f;
+    }
+
+    if (FVector::DistSquared2D(GetActorLocation(), HomeLocation) > FMath::Square(950.f))
+    {
+        SetZombieState(EDeadlandsZombieState::Returning);
+        GetCharacterMovement()->MaxWalkSpeed = WalkSpeed * 0.7f;
+        NavigateTo(HomeLocation, 130.f, Now);
+        return;
+    }
+
+    if (Now >= NextWanderTime)
+    {
+        NextWanderTime = Now + FMath::FRandRange(5.f, 10.f);
+        WanderDestination = HomeLocation + FVector(
+            FMath::FRandRange(-450.f, 450.f), FMath::FRandRange(-450.f, 450.f), 0.f);
+        bHasWanderDestination = true;
+    }
+    if (bHasWanderDestination &&
+        FVector::DistSquared2D(GetActorLocation(), WanderDestination) > FMath::Square(100.f))
+    {
+        SetZombieState(EDeadlandsZombieState::Wandering);
+        GetCharacterMovement()->MaxWalkSpeed = WalkSpeed * 0.45f;
+        NavigateTo(WanderDestination, 95.f, Now);
+    }
+    else
+    {
+        bHasWanderDestination = false;
+        SetZombieState(EDeadlandsZombieState::Idle);
+        if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
+    }
 }
 
 void ADeadlandsZombie::Tick(float DeltaSeconds)
@@ -127,6 +181,8 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
             Target = Best;
             LastKnownLocation = Best->GetActorLocation();
             LastSensedTime = Now;
+            bSearching = false;
+            GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
         }
     }
 
@@ -135,8 +191,14 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
     AAIController* AI = Cast<AAIController>(GetController());
     if (!bRemembering)
     {
+        if (Target && !bSearching)
+        {
+            bSearching = true;
+            SearchEndTime = Now + 6.f;
+            SearchDestination = LastKnownLocation;
+        }
         CurrentTarget.Reset();
-        if (AI) AI->StopMovement();
+        UpdatePassiveBehavior(Now);
         return;
     }
 
@@ -145,6 +207,7 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         FVector::Dist(GetActorLocation(), Best->GetActorLocation()) <= AttackRange &&
         CanSeePlayer(Best))
     {
+        SetZombieState(EDeadlandsZombieState::Attacking);
         if (AI) AI->StopMovement();
         if (Now >= NextAttackTime)
         {
@@ -154,37 +217,9 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         return;
     }
 
-    FVector Toward = LastKnownLocation - GetActorLocation();
-    Toward.Z = 0.f;
-    if (Toward.SizeSquared() < FMath::Square(65.f))
-    {
-        if (AI) AI->StopMovement();
-        return;
-    }
-
-    // Navigation-driven pursuit, updated at a modest rate to avoid pathfinding every frame.
-    // Never fall back to straight-line movement: it would push against walls or
-    // allow pursuit through areas with no valid navigable route.
-    if (AI && Now >= NextDecisionTime)
-    {
-        NextDecisionTime = Now + 0.45f;
-        if (UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
-        {
-            FNavLocation Projected;
-            if (Nav->ProjectPointToNavigation(LastKnownLocation, Projected, FVector(200.f, 200.f, 300.f)))
-            {
-                AI->MoveToLocation(Projected.Location, 65.f, true, true, false, true, nullptr, true);
-            }
-            else
-            {
-                AI->StopMovement();
-            }
-        }
-        else
-        {
-            AI->StopMovement();
-        }
-    }
+    SetZombieState(Best == Target ? EDeadlandsZombieState::Chasing : EDeadlandsZombieState::Suspicious);
+    GetCharacterMovement()->MaxWalkSpeed = Best == Target ? WalkSpeed : WalkSpeed * 0.8f;
+    NavigateTo(LastKnownLocation, 65.f, Now);
 }
 
 void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
@@ -195,6 +230,7 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
     if (Health <= 0.f)
     {
         bDead = true;
+        SetZombieState(EDeadlandsZombieState::Dead);
         if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
         GetCharacterMovement()->DisableMovement();
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -222,4 +258,5 @@ void ADeadlandsZombie::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(ADeadlandsZombie, Health);
     DOREPLIFETIME(ADeadlandsZombie, bDead);
+    DOREPLIFETIME(ADeadlandsZombie, ZombieState);
 }

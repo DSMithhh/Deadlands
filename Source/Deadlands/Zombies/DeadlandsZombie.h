@@ -7,6 +7,12 @@
 class UStaticMeshComponent;
 class ADeadlandsCharacter;
 
+UENUM(BlueprintType)
+enum class EDeadlandsZombieState : uint8
+{
+    Idle, Wandering, Suspicious, Chasing, Searching, Attacking, Returning, Dead
+};
+
 /** Simple server-driven zombie prototype. Place BP child actors in the level. */
 UCLASS()
 class DEADLANDS_API ADeadlandsZombie : public ACharacter
@@ -21,6 +27,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Zombie")
     float GetZombieHealth() const { return Health; }
+
+    UFUNCTION(BlueprintPure, Category="Deadlands|Zombie")
+    EDeadlandsZombieState GetZombieState() const { return ZombieState; }
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Zombie")
@@ -44,6 +53,9 @@ protected:
     UPROPERTY(ReplicatedUsing=OnRep_Dead, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Zombie")
     bool bDead = false;
 
+    UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Zombie")
+    EDeadlandsZombieState ZombieState = EDeadlandsZombieState::Idle;
+
     UFUNCTION() void OnRep_Health();
     UFUNCTION() void OnRep_Dead();
 
@@ -60,6 +72,16 @@ private:
     FVector LastKnownLocation = FVector::ZeroVector;
     float LastSensedTime = -1000.f;
     float NextDecisionTime = 0.f;
+    float NextWanderTime = 0.f;
+    float SearchEndTime = 0.f;
+    FVector HomeLocation = FVector::ZeroVector;
+    FVector WanderDestination = FVector::ZeroVector;
+    FVector SearchDestination = FVector::ZeroVector;
+    bool bSearching = false;
+    bool bHasWanderDestination = false;
+    void SetZombieState(EDeadlandsZombieState NewState);
+    void NavigateTo(const FVector& Destination, float AcceptanceRadius, float Now);
+    void UpdatePassiveBehavior(float Now);
     float NextAttackTime = 0.f;
     bool CanSeePlayer(const ADeadlandsCharacter* Player) const;
     FVector ChooseSteering(const FVector& Desired) const;
