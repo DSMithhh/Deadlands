@@ -173,3 +173,49 @@ bool FDeadlandsWorldPersistence::SaveContainerSupplies(
     }
     return bSaved;
 }
+
+bool FDeadlandsWorldPersistence::LoadInventory(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Context), 0));
+    if (!Save) return false;
+    const FDeadlandsItemInventory* Found = Save->SavedInventories.Find(Key);
+    if (!Found) return false;
+    Out = Found->Stacks;
+    return true;
+}
+
+bool FDeadlandsWorldPersistence::SaveInventory(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    if (!Save) return false;
+    FDeadlandsItemInventory Record;
+    Record.Stacks = Items;
+    Save->SavedInventories.Add(Key, MoveTemp(Record));
+    return UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+}
+
+bool FDeadlandsWorldPersistence::TransferItem(const UObject* Context, const FString& SourceKey, const FString& DestinationKey, FName ItemId, int32 Capacity, TArray<FDeadlandsItemStack>& Source, TArray<FDeadlandsItemStack>& Destination)
+{
+    if (!IsValid(Context) || SourceKey.IsEmpty() || DestinationKey.IsEmpty() || SourceKey == DestinationKey ||
+        !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    TArray<FDeadlandsItemStack> NewSource = Source;
+    TArray<FDeadlandsItemStack> NewDestination = Destination;
+    if (!FDeadlandsItems::RemoveOne(NewSource, ItemId) || !FDeadlandsItems::AddOne(NewDestination, ItemId, Capacity)) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    if (!Save) return false;
+    FDeadlandsItemInventory SourceRecord, DestinationRecord;
+    SourceRecord.Stacks = NewSource;
+    DestinationRecord.Stacks = NewDestination;
+    Save->SavedInventories.Add(SourceKey, MoveTemp(SourceRecord));
+    Save->SavedInventories.Add(DestinationKey, MoveTemp(DestinationRecord));
+    if (!UGameplayStatics::SaveGameToSlot(Save, Slot, 0)) return false;
+    Source = MoveTemp(NewSource);
+    Destination = MoveTemp(NewDestination);
+    return true;
+}
