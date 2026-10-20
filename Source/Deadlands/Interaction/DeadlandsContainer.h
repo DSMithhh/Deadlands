@@ -7,6 +7,7 @@
 #include "DeadlandsContainer.generated.h"
 
 class UStaticMeshComponent;
+class ADeadlandsCharacter;
 
 /** Persistent container with a finite supply count. */
 UCLASS(Blueprintable)
@@ -16,6 +17,7 @@ class DEADLANDS_API ADeadlandsContainer : public AActor, public IDeadlandsIntera
 
 public:
     ADeadlandsContainer();
+    bool TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity);
     virtual void BeginPlay() override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     virtual bool CanInteract_Implementation(ACharacter* InteractingCharacter) const override;
