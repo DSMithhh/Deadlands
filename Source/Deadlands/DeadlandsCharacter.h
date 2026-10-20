@@ -45,6 +45,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* LookAction;
 
+	/** F-key interaction action (assign IA_Interact in the character Blueprint). */
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* InteractAction;
+
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
@@ -53,6 +57,12 @@ public:
 	ADeadlandsCharacter();
 
 protected:
+
+	/** Find an interactable directly ahead and request a server interaction. */
+	void TryInteract();
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryInteract(AActor* RequestedTarget);
 
 	/** Called from Input Actions for movement input */
 	void MoveInput(const FInputActionValue& Value);
