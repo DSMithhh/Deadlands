@@ -18,6 +18,7 @@ public:
     UFUNCTION(BlueprintPure, Category="Deadlands|Vitals") bool CanSprint() const { return Stamina > 1.f; }
     UFUNCTION(BlueprintCallable, Category="Deadlands|Vitals") void SetSprinting(bool bNewSprinting);
     bool Consume(FName ItemId);
+    void RestoreAfterRespawn();
     UFUNCTION(BlueprintPure, Category="Deadlands|Vitals") float GetRecoveryMultiplier() const
     { return (Hunger < 25.f || Thirst < 25.f) ? 0.4f : 1.f; }
 protected:
