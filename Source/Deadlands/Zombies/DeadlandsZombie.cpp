@@ -44,8 +44,6 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
     if (!HasAuthority() || bDead || !GetWorld()) return;
     const float Now = GetWorld()->GetTimeSeconds();
-    if (Now < NextDecisionTime) return;
-    NextDecisionTime = Now + 0.35f;
 
     ADeadlandsCharacter* Nearest = nullptr;
     float BestDistanceSq = FMath::Square(DetectionRange);
