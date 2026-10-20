@@ -18,6 +18,9 @@ class DEADLANDS_API ADeadlandsContainer : public AActor, public IDeadlandsIntera
 public:
     ADeadlandsContainer();
     bool TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity);
+    UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
+    TArray<FDeadlandsItemStack> GetItems() const { return Items; }
+
     virtual void BeginPlay() override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     virtual bool CanInteract_Implementation(ACharacter* InteractingCharacter) const override;
@@ -50,8 +53,6 @@ protected:
     UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Loot")
     void OnContainerItemsChanged();
 
-    UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
-    TArray<FDeadlandsItemStack> GetItems() const { return Items; }
 
     UPROPERTY(ReplicatedUsing=OnRep_Supplies, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Loot")
     int32 RemainingSupplies = 0;
