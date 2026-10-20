@@ -24,6 +24,8 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     void ReceiveMeleeDamage(float Amount);
+    void HearCombatNoise(const FVector& NoiseLocation);
+    void AlertFromZombie(const FVector& AlertLocation);
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Zombie")
     float GetZombieHealth() const { return Health; }
@@ -83,6 +85,17 @@ private:
     void NavigateTo(const FVector& Destination, float AcceptanceRadius, float Now);
     void UpdatePassiveBehavior(float Now);
     float NextAttackTime = 0.f;
+    float AttackWindupEnd = 0.f;
+    float StaggerEndTime = 0.f;
+    bool bWindingUp = false;
+    TWeakObjectPtr<ADeadlandsCharacter> WindupTarget;
+    float NextAlertTime = 0.f;
+    float CorpseDestroyDelay = 45.f;
+    float StaggerDuration = 0.65f;
+    float AttackWindupSeconds = 0.55f;
+    float KnockbackStrength = 350.f;
+    bool bFastVariant = false;
+    void BroadcastAlert(const FVector& Location);
     bool CanSeePlayer(const ADeadlandsCharacter* Player) const;
     FVector ChooseSteering(const FVector& Desired) const;
     void ApplyDeathVisual();
