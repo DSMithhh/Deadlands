@@ -79,6 +79,15 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
     if (!HasAuthority() || bDead || !GetWorld()) return;
     const float Now = GetWorld()->GetTimeSeconds();
 
+    // Commit to an existing hunt for a short period instead of switching to any visible bystander.
+    ADeadlandsCharacter* Target = CurrentTarget.Get();
+    if (Target && (!IsValid(Target) || Target->GetHealth() <= 0.f))
+    {
+        CurrentTarget.Reset();
+        Target = nullptr;
+        LastSensedTime = -1000.f;
+    }
+
     ADeadlandsCharacter* Best = nullptr;
     float BestScore = -1.f;
     for (TActorIterator<ADeadlandsCharacter> It(GetWorld()); It; ++It)
@@ -87,23 +96,40 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         if (!IsValid(Candidate) || Candidate->GetHealth() <= 0.f) continue;
         const float Distance = FVector::Dist(GetActorLocation(), Candidate->GetActorLocation());
         const bool bVisible = Distance <= DetectionRange && CanSeePlayer(Candidate);
-        const float AudibleRange = Candidate->IsSprinting() ? SprintHearingRange : HearingRange;
-        const bool bAudible = Distance <= AudibleRange;
-        if (!bVisible && !bAudible) continue;
-        // Sight is more compelling than footsteps; sprinting attracts from farther away.
-        const float Score = (bVisible ? 2000.f : 1000.f) + (Candidate->IsSprinting() ? 300.f : 0.f) - Distance * 0.5f;
+        // Walking is deliberately quiet; sprinting is audible through walls.
+        const bool bAudible = Candidate->IsSprinting() && Distance <= SprintHearingRange;
+        const bool bClose = Distance <= 175.f;
+        if (!bVisible && !bAudible && !bClose) continue;
+
+        const float Score = (bVisible ? 2000.f : 0.f) +
+            (bAudible ? 900.f : 0.f) + (bClose ? 500.f : 0.f) - Distance * 0.5f;
+        // A remembered target wins unless another player is very close or creates a strong distraction.
+        if (Candidate == Target && Now - LastSensedTime <= MemorySeconds)
+        {
+            Best = Candidate;
+            BestScore = Score;
+            break;
+        }
         if (Score > BestScore) { BestScore = Score; Best = Candidate; }
     }
 
     if (Best)
     {
-        CurrentTarget = Best;
-        LastKnownLocation = Best->GetActorLocation();
-        LastSensedTime = Now;
+        const bool bCommitted = Target && Now - LastSensedTime <= MemorySeconds;
+        const float BestDistance = FVector::Dist(GetActorLocation(), Best->GetActorLocation());
+        const bool bStrongDistraction = Best != Target &&
+            (BestDistance <= 220.f || (Best->IsSprinting() && BestDistance <= 450.f));
+        if (!bCommitted || Best == Target || bStrongDistraction)
+        {
+            CurrentTarget = Best;
+            Target = Best;
+            LastKnownLocation = Best->GetActorLocation();
+            LastSensedTime = Now;
+        }
     }
 
     const bool bRemembering = Now - LastSensedTime <= MemorySeconds;
-    ADeadlandsCharacter* Target = CurrentTarget.Get();
+    Target = CurrentTarget.Get();
     AAIController* AI = Cast<AAIController>(GetController());
     if (!bRemembering)
     {
