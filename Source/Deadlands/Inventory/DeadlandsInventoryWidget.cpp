@@ -12,6 +12,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Input/Reply.h"
+#include "InputCoreTypes.h"
 
 void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container)
 {
@@ -23,6 +24,7 @@ void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Charact
 void UDeadlandsInventoryWidget::NativeConstruct()
 {
     Super::NativeConstruct();
+    SetIsFocusable(true);
     UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
     UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>();
     WidgetTree->RootWidget = Canvas;
@@ -139,4 +141,14 @@ void UDeadlandsInventoryWidget::PutStack()
         const FName Id(*ItemPicker->GetSelectedOption());
         Survivor->RequestItemTransfer(LootContainer, Id, false, FDeadlandsItems::MaxStack(Id));
     }
+}
+
+FReply UDeadlandsInventoryWidget::NativeOnKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
+{
+    if (Event.GetKey() == EKeys::Tab || Event.GetKey() == EKeys::Escape)
+    {
+        if (Survivor) Survivor->CloseInventory();
+        return FReply::Handled();
+    }
+    return Super::NativeOnKeyDown(Geometry, Event);
 }
