@@ -19,7 +19,8 @@ ADeadlandsDoor::ADeadlandsDoor()
 
     InteractionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("InteractionVolume"));
     InteractionVolume->SetupAttachment(DoorRoot);
-    InteractionVolume->SetBoxExtent(FVector(35.f, 75.f, 110.f));
+    InteractionVolume->SetBoxExtent(FVector(35.f, 55.f, 110.f));
+    InteractionVolume->SetRelativeLocation(FVector(0.f, 50.f, 0.f));
     InteractionVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     InteractionVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
     InteractionVolume->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -80,6 +81,9 @@ FString ADeadlandsDoor::GetPersistenceKey() const
 
 void ADeadlandsDoor::ApplyState()
 {
-    DoorMesh->SetRelativeRotation(FRotator(0.f, bOpen ? OpenAngle : 0.f, 0.f));
+    const FRotator DoorRotation(0.f, bOpen ? OpenAngle : 0.f, 0.f);
+    DoorMesh->SetRelativeRotation(DoorRotation);
+    InteractionVolume->SetRelativeRotation(DoorRotation);
+    InteractionVolume->SetRelativeLocation(DoorRotation.RotateVector(FVector(0.f, 50.f, 0.f)));
     OnDoorStateChanged(bOpen, bLocked);
 }
