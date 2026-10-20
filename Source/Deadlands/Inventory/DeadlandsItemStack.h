@@ -14,6 +14,15 @@ struct FDeadlandsItemStack
     int32 Quantity = 0;
 };
 
+USTRUCT(BlueprintType)
+struct FDeadlandsItemInventory
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TArray<FDeadlandsItemStack> Stacks;
+};
+
 /** Prototype item catalogue: stable identifiers and fixed stack sizes. */
 struct FDeadlandsItems
 {
