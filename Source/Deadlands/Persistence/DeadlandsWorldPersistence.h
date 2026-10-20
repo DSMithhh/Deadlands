@@ -8,6 +8,8 @@ class DEADLANDS_API FDeadlandsWorldPersistence
 public:
     static bool LoadSwitchState(const UObject* WorldContext, const FString& ObjectId, bool& OutIsOn);
     static bool SaveSwitchState(const UObject* WorldContext, const FString& ObjectId, bool bIsOn);
+    static bool LoadActorFlag(const UObject* WorldContext, const FString& ObjectId, const FString& Flag, bool& OutValue);
+    static bool SaveActorFlag(const UObject* WorldContext, const FString& ObjectId, const FString& Flag, bool bValue);
 
 private:
     static FString GetSlotName(const UObject* WorldContext);
