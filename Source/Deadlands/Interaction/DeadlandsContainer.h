@@ -7,7 +7,7 @@
 
 class UStaticMeshComponent;
 
-/** Replicated container shell; inventory/finite loot comes in a later pack. */
+/** Persistent container with a finite supply count. */
 UCLASS(Blueprintable)
 class DEADLANDS_API ADeadlandsContainer : public AActor, public IDeadlandsInteractable
 {
@@ -30,8 +30,21 @@ protected:
     UPROPERTY(ReplicatedUsing=OnRep_Open, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Container")
     bool bOpen = false;
 
+    /** Supplies assigned once when no save exists for this container. */
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot", meta=(ClampMin="0"))
+    int32 InitialSupplies = 5;
+
+    UPROPERTY(ReplicatedUsing=OnRep_Supplies, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Loot")
+    int32 RemainingSupplies = 0;
+
     UFUNCTION()
     void OnRep_Open();
+
+    UFUNCTION()
+    void OnRep_Supplies();
+
+    UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Loot")
+    void OnRemainingSuppliesChanged(int32 NewAmount);
 
     UFUNCTION(BlueprintImplementableEvent, Category="Deadlands|Container")
     void OnContainerStateChanged(bool bIsOpen);
