@@ -119,6 +119,8 @@ protected:
     UPROPERTY(Transient)
     TObjectPtr<UDeadlandsInteractionPrompt> InteractionPrompt;
     float InteractionPromptCountdown = 0.f;
+    FVector StandingCameraRelativeLocation = FVector::ZeroVector;
+    bool bCameraBaseCaptured = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Survival")
     TObjectPtr<USpotLightComponent> Flashlight;
