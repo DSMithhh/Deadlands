@@ -32,4 +32,6 @@ private:
     void Refresh();
     UFUNCTION() void TakeOne();
     UFUNCTION() void PutOne();
+    UFUNCTION() void TakeStack();
+    UFUNCTION() void PutStack();
 };
