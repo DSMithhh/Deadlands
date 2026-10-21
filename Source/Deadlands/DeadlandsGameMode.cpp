@@ -23,7 +23,7 @@ void ADeadlandsGameMode::BeginPlay()
             ADeadlandsBarricade::StaticClass(),Entry.Value.Transform,nullptr,nullptr,
             ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
         if(!Barricade)continue;
-        Barricade->InitializeSaved(Entry.Key,Entry.Value.Health);
+        Barricade->InitializeSaved(Entry.Key,Entry.Value.Health,static_cast<EDeadlandsBuildPiece>(Entry.Value.PieceType),Entry.Value.bDoorOpen);
         Barricade->FinishSpawning(Entry.Value.Transform);
     }
     const TMap<FString, FVector> SavedBags = FDeadlandsWorldPersistence::LoadCorpseBags(this);
