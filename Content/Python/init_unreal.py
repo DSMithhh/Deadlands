@@ -18,5 +18,6 @@ try:
     run_file("repair_deadlands_lighting.py")
     run_file("apply_deadlands_materials.py")
     run_file("apply_deadlands_weathering.py")
+    run_file("build_deadlands_modular_props.py")
 except Exception:
     unreal.log_error("Deadlands Pack 16 startup failed:\n" + traceback.format_exc())
