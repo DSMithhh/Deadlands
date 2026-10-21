@@ -20,6 +20,9 @@ public:
     void SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container);
     void SelectTile(bool bContainer, int32 Index);
     void TransferTile(bool bContainer, FName ItemId, int32 Quantity);
+    bool DropOnEquipment(FName ItemId, bool bFromContainer, bool bFromEquipment, int32 EquipmentSlot);
+    bool UnequipToInventory(FName ItemId);
+    bool IsEquipped(FName ItemId) const;
     bool DropTile(bool bSourceContainer, int32 SourceIndex, FName ItemId, bool bStack, bool bDestinationContainer, int32 DestinationIndex);
     virtual void NativeOnInitialized() override;
     virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
@@ -47,6 +50,8 @@ private:
     float StatusUntil = 0.f;
     UPROPERTY() TObjectPtr<UUniformGridPanel> PlayerGrid;
     UPROPERTY() TObjectPtr<UUniformGridPanel> LootGrid;
+    UPROPERTY() TObjectPtr<UUniformGridPanel> EquipmentGrid;
+    FString EquipmentSignature;
     UPROPERTY() TObjectPtr<UTextBlock> ItemDetails;
     FName SelectedId = NAME_None;
     bool bSelectedFromContainer = false;
