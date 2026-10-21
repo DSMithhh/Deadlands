@@ -60,7 +60,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     ItemPicker = WidgetTree->ConstructWidget<UComboBoxString>();
     for (const TCHAR* Id : { TEXT("Food"), TEXT("Water"), TEXT("Medicine"), TEXT("Tools"), TEXT("Materials"), TEXT("Bandage"), TEXT("Antibiotics"),
                               TEXT("Ammo9mm"), TEXT("Ammo12g"), TEXT("Scrap"),
-                              TEXT("Cloth"), TEXT("Backpack"), TEXT("Pistol") })
+                              TEXT("Cloth"), TEXT("Backpack"), TEXT("Pistol"), TEXT("Jacket"), TEXT("Pants"), TEXT("ArmorVest") })
         ItemPicker->AddOption(FString(Id));
     ItemPicker->SetSelectedOption(TEXT("Food"));
     ItemPicker->SetVisibility(ESlateVisibility::Collapsed);
@@ -97,6 +97,8 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     LootGrid = WidgetTree->ConstructWidget<UUniformGridPanel>();
     PlayerScroll->AddChild(PlayerGrid);
     LootScroll->AddChild(LootGrid);
+    EquipmentLabel = MakeText(TEXT("EQUIPMENT  /  JACKET: EMPTY  |  PANTS: EMPTY  |  VEST: EMPTY"));
+    EquipmentLabel->SetColorAndOpacity(FSlateColor(FLinearColor(.86f,.72f,.43f)));
     ItemDetails = MakeText(TEXT("SELECT AN ITEM TO VIEW DETAILS"));
     QuickbarLabel = MakeText(TEXT("QUICK ACCESS  1-5"));
     ItemDetails->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.84f, 0.90f)));
@@ -183,6 +185,12 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     };
     UButton* BackpackButton = AddAction(TEXT(" EQUIP BAG "));
     BackpackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::EquipBackpack);
+    UButton* JacketButton = AddAction(TEXT(" JACKET "));
+    JacketButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ToggleJacket);
+    UButton* PantsButton = AddAction(TEXT(" PANTS "));
+    PantsButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TogglePants);
+    UButton* VestButton = AddAction(TEXT(" ARMOR VEST "));
+    VestButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ToggleArmor);
     UButton* BandageButton = AddAction(TEXT(" BANDAGE "));
     BandageButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftBandage);
     UButton* ToolsButton = AddAction(TEXT(" TOOLS "));
@@ -271,6 +279,12 @@ void UDeadlandsInventoryWidget::Refresh()
         if (Survivor) BuildGrid(PlayerGrid, Survivor->GetItems(), false);
         if (LootContainer) BuildGrid(LootGrid, LootContainer->GetItems(), true);
     }
+    if (EquipmentLabel && Survivor)
+        EquipmentLabel->SetText(FText::FromString(FString::Printf(
+            TEXT("EQUIPMENT  |  JACKET: %s (+4 KG)  |  PANTS: %s (+2 KG)  |  VEST: %s (30%% PROTECTION)"),
+            Survivor->IsGearEquipped(TEXT("Jacket")) ? TEXT("ON") : TEXT("OFF"),
+            Survivor->IsGearEquipped(TEXT("Pants")) ? TEXT("ON") : TEXT("OFF"),
+            Survivor->IsGearEquipped(TEXT("ArmorVest")) ? TEXT("ON") : TEXT("OFF"))));
     if (QuickbarLabel)
     {
         FString Text = TEXT("QUICK ACCESS");
@@ -310,7 +324,8 @@ void UDeadlandsInventoryWidget::Refresh()
         PutButton->SetVisibility(IsValid(LootContainer) && !bSelectedFromContainer && !SelectedId.IsNone() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed); }
     if (UseButton) UseButton->SetVisibility(SelectedId == TEXT("Food") || SelectedId == TEXT("Water") ||
         SelectedId == TEXT("Medicine") || SelectedId == TEXT("Bandage") || SelectedId == TEXT("Antibiotics") ||
-        SelectedId == TEXT("Backpack") ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        SelectedId == TEXT("Backpack") || SelectedId == TEXT("Jacket") || SelectedId == TEXT("Pants") ||
+        SelectedId == TEXT("ArmorVest") ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     if (DropActionButton) DropActionButton->SetVisibility(!SelectedId.IsNone() && !bSelectedFromContainer ?
         ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     if (StatusLabel) StatusLabel->SetText(FText::FromString(StatusMessage.IsEmpty() ?
@@ -394,6 +409,7 @@ void UDeadlandsInventoryWidget::ConsumeSelected()
         else if (!bSelectedFromContainer)
         {
             if (SelectedId == TEXT("Backpack")) Survivor->RequestEquipBackpack();
+            else if (SelectedId == TEXT("Jacket") || SelectedId == TEXT("Pants") || SelectedId == TEXT("ArmorVest")) Survivor->RequestToggleEquipment(SelectedId);
             else Survivor->RequestConsumeItem(SelectedId);
         }
     }
@@ -405,6 +421,9 @@ void UDeadlandsInventoryWidget::DropSelected()
 }
 
 void UDeadlandsInventoryWidget::EquipBackpack() { if (Survivor) Survivor->RequestEquipBackpack(); }
+void UDeadlandsInventoryWidget::ToggleJacket() { if (Survivor) Survivor->RequestToggleEquipment(TEXT("Jacket")); }
+void UDeadlandsInventoryWidget::TogglePants() { if (Survivor) Survivor->RequestToggleEquipment(TEXT("Pants")); }
+void UDeadlandsInventoryWidget::ToggleArmor() { if (Survivor) Survivor->RequestToggleEquipment(TEXT("ArmorVest")); }
 void UDeadlandsInventoryWidget::CraftBandage() { if (Survivor) Survivor->RequestCraft(TEXT("Bandage")); }
 void UDeadlandsInventoryWidget::CraftTools() { if (Survivor) Survivor->RequestCraft(TEXT("Tools")); }
 void UDeadlandsInventoryWidget::CraftMedicine() { if (Survivor) Survivor->RequestCraft(TEXT("Medicine")); }
