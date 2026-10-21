@@ -58,10 +58,12 @@ void ADeadlandsZombie::BeginPlay()
     if (HasAuthority())
     {
         // Two server-selected prototypes: common walkers and uncommon runners.
-        bFastVariant = FMath::FRand() < 0.25f;
-        WalkSpeed = bFastVariant ? 310.f : 180.f;
-        MaxHealth = bFastVariant ? 40.f : FMath::FRandRange(50.f, 80.f);
-        AttackDamage = bFastVariant ? 7.f : 10.f;
+        bRareVariant = FMath::FRand() < 0.10f;
+        bFastVariant = !bRareVariant && FMath::FRand() < 0.25f;
+        WalkSpeed = bRareVariant ? 145.f : (bFastVariant ? 310.f : 180.f);
+        MaxHealth = bRareVariant ? 120.f : (bFastVariant ? 40.f : FMath::FRandRange(50.f, 75.f));
+        AttackDamage = bRareVariant ? 17.f : (bFastVariant ? 7.f : 10.f);
+        OnRep_Variant();
         Health = MaxHealth;
         HomeLocation = GetActorLocation();
         NextWanderTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
@@ -377,7 +379,7 @@ void ADeadlandsZombie::CreateCorpseLoot()
             for (int32 i = 0; i < Count; ++i) FDeadlandsItems::AddOne(Rolled, Id, 1000);
         }
     };
-    const bool bRare = MaxHealth >= 75.f;
+    const bool bRare = bRareVariant;
     Roll(TEXT("Cloth"), .65f, 3);
     Roll(TEXT("Scrap"), .55f, 3);
     Roll(TEXT("Food"), .22f, 2);
@@ -405,6 +407,11 @@ void ADeadlandsZombie::ApplyDeathVisual()
 {
     // Keep the inert placeholder visible as a temporary corpse until cleanup.
     // Continue ticking so the corpse can finish its collapse.
+}
+void ADeadlandsZombie::OnRep_Variant()
+{
+    if (PlaceholderBody) PlaceholderBody->SetRelativeScale3D(bRareVariant ? FVector(.52f, .33f, .72f) : (bFastVariant ? FVector(.30f, .20f, .52f) : FVector(.37f, .23f, .57f)));
+    if (HeadVisual) HeadVisual->SetRelativeScale3D(bRareVariant ? FVector(.39f, .36f, .39f) : FVector(.30f, .27f, .32f));
 }
 void ADeadlandsZombie::OnRep_Health() {}
 void ADeadlandsZombie::OnRep_HitReaction()
@@ -463,4 +470,6 @@ void ADeadlandsZombie::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(ADeadlandsZombie, ZombieState);
     DOREPLIFETIME(ADeadlandsZombie, HitReactionSerial);
     DOREPLIFETIME(ADeadlandsZombie, CorpseLoot);
+    DOREPLIFETIME(ADeadlandsZombie, bFastVariant);
+    DOREPLIFETIME(ADeadlandsZombie, bRareVariant);
 }
