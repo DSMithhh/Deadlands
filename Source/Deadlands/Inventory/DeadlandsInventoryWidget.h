@@ -18,6 +18,9 @@ class DEADLANDS_API UDeadlandsInventoryWidget : public UUserWidget
     GENERATED_BODY()
 public:
     void SetInventoryContext(ADeadlandsCharacter* Character, ADeadlandsContainer* Container);
+    void SelectTile(bool bContainer, int32 Index);
+    void TransferTile(bool bContainer, FName ItemId, int32 Quantity);
+    bool DropTile(bool bSourceContainer, int32 SourceIndex, FName ItemId, bool bStack, bool bDestinationContainer, int32 DestinationIndex);
     virtual void NativeOnInitialized() override;
     virtual FReply NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
     virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
