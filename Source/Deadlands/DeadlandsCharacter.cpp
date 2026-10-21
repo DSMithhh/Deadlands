@@ -346,14 +346,14 @@ void ADeadlandsCharacter::ShowInventory(ADeadlandsContainer* Container)
 
 void ADeadlandsCharacter::RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity)
 {
-    if (!IsLocallyControlled() || !IsValid(Container) || Quantity < 1 || Quantity > 20 ||
+    if (!IsLocallyControlled() || !IsValid(Container) || Quantity < 1 || Quantity > 30 ||
         FDeadlandsItems::MaxStack(ItemId) == 0) return;
     ServerTransferItems(Container, ItemId, bTake, Quantity);
 }
 
 void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity)
 {
-    if (!IsValid(Container) || Quantity < 1 || Quantity > 20 ||
+    if (!IsValid(Container) || Quantity < 1 || Quantity > 30 ||
         FDeadlandsItems::MaxStack(ItemId) == 0 || !EnsureItemInventory()) return;
     const FVector Eye = GetPawnViewLocation();
     const FBox Bounds = Container->GetComponentsBoundingBox();
