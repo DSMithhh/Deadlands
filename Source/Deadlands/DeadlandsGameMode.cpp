@@ -19,6 +19,18 @@ void ADeadlandsGameMode::BeginPlay()
     for(const auto& Entry:FDeadlandsWorldPersistence::LoadBarricades(this))
     {
         if(Entry.Value.Health<=0.f)continue;
+        if(Entry.Value.PieceType==4)
+        {
+            ADeadlandsContainer* Storage=GetWorld()->SpawnActorDeferred<ADeadlandsContainer>(
+                ADeadlandsContainer::StaticClass(),Entry.Value.Transform,nullptr,nullptr,
+                ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+            if(Storage)
+            {
+                Storage->ConfigureBuiltStorage(FName(*Entry.Key));
+                Storage->FinishSpawning(Entry.Value.Transform);
+            }
+            continue;
+        }
         ADeadlandsBarricade* Barricade=GetWorld()->SpawnActorDeferred<ADeadlandsBarricade>(
             ADeadlandsBarricade::StaticClass(),Entry.Value.Transform,nullptr,nullptr,
             ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
