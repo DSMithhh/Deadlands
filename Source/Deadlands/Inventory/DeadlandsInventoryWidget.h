@@ -38,6 +38,10 @@ private:
     UPROPERTY() TObjectPtr<UButton> UseButton;
     UPROPERTY() TObjectPtr<UButton> DropActionButton;
     UPROPERTY() TObjectPtr<UTextBlock> StatusLabel;
+    UPROPERTY() TObjectPtr<UTextBlock> EquipmentLabel;
+    UFUNCTION() void ToggleJacket();
+    UFUNCTION() void TogglePants();
+    UFUNCTION() void ToggleArmor();
     UFUNCTION() void TakeAll();
     FString StatusMessage;
     float StatusUntil = 0.f;

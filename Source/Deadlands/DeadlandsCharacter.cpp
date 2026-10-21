@@ -256,6 +256,7 @@ void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME(ADeadlandsCharacter, Health);
     DOREPLIFETIME(ADeadlandsCharacter, bIsDead);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, bBackpackEquipped, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, EquippedGear, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Bleeding, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Infection, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(ADeadlandsCharacter, ToolCondition, COND_OwnerOnly);
@@ -311,6 +312,8 @@ bool ADeadlandsCharacter::EnsureItemInventory()
     if (Key.IsEmpty()) return false;
     FDeadlandsWorldPersistence::LoadInventory(this, Key, Items);
     FDeadlandsWorldPersistence::LoadSurvivalState(this, Key, bBackpackEquipped, Bleeding, Infection, ToolCondition);
+    FDeadlandsWorldPersistence::LoadEquipment(this, Key, EquippedGear);
+    EquippedGear.SetNum(3);
     bItemsLoaded = true;
     NotifyItemsChanged();
     return true;
@@ -500,10 +503,11 @@ void ADeadlandsCharacter::DebugHeal()
 void ADeadlandsCharacter::ApplyCombatDamage(float Amount)
 {
     if (!HasAuthority() || bIsDead || Amount <= 0.f) return;
-    ApplySurvivalDamage(Amount);
+    EnsureItemInventory();
+    ApplySurvivalDamage(Amount * (1.f - GetArmorReduction()));
     if (EnsureItemInventory())
     {
-        Bleeding = FMath::Min(100.f, Bleeding + Amount * 0.35f);
+        Bleeding = FMath::Min(100.f, Bleeding + Amount * (1.f - GetArmorReduction()) * 0.35f);
         if (FMath::FRand() < 0.15f)
             Infection = FMath::Min(100.f, Infection + 20.f);
         FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
@@ -782,13 +786,15 @@ void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContai
 {
     if (bIsDead || !Vitals || !IsValid(Container) || !EnsureItemInventory()) return;
     if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine") &&
-        ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics") && ItemId != TEXT("Backpack")) return;
+        ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics") && ItemId != TEXT("Backpack") &&
+        ItemId != TEXT("Jacket") && ItemId != TEXT("Pants") && ItemId != TEXT("ArmorVest")) return;
     if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
         (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f) ||
         (ItemId == TEXT("Medicine") && Health >= MaxHealth) ||
         (ItemId == TEXT("Bandage") && Bleeding <= 0.f) ||
         (ItemId == TEXT("Antibiotics") && Infection <= 0.f) ||
-        (ItemId == TEXT("Backpack") && bBackpackEquipped)) return;
+        (ItemId == TEXT("Backpack") && bBackpackEquipped) ||
+        ((ItemId == TEXT("Jacket") || ItemId == TEXT("Pants") || ItemId == TEXT("ArmorVest")) && IsGearEquipped(ItemId))) return;
     // Reuse the same server-side reach and obstruction checks as manual transfers.
     // No client-side consumption is trusted.
     const FVector Eye = GetPawnViewLocation();
@@ -809,6 +815,7 @@ void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContai
         (Hit.GetActor() != Container && Hit.GetActor() != MatchingCorpse)) return;
     if (!Container->TransferItemsToCharacter(this, ItemId, true, 1)) return;
     if (ItemId == TEXT("Backpack")) ServerEquipBackpack_Implementation();
+    else if (ItemId == TEXT("Jacket") || ItemId == TEXT("Pants") || ItemId == TEXT("ArmorVest")) ServerToggleEquipment_Implementation(ItemId);
     else ServerConsumeItem_Implementation(ItemId);
 }
 void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
@@ -873,6 +880,44 @@ bool ADeadlandsCharacter::SaveSurvivalAndItems(const TArray<FDeadlandsItemStack>
     ToolCondition = NewCondition;
     NotifyItemsChanged();
     return true;
+}
+bool ADeadlandsCharacter::IsGearEquipped(FName ItemId) const
+{
+    const int32 Slot = ItemId == TEXT("Jacket") ? 0 : ItemId == TEXT("Pants") ? 1 : ItemId == TEXT("ArmorVest") ? 2 : INDEX_NONE;
+    return Slot != INDEX_NONE && EquippedGear.IsValidIndex(Slot) && EquippedGear[Slot].ItemId == ItemId && EquippedGear[Slot].Quantity > 0;
+}
+float ADeadlandsCharacter::GetArmorReduction() const
+{
+    return IsGearEquipped(TEXT("ArmorVest")) ? 0.30f : 0.f;
+}
+void ADeadlandsCharacter::RequestToggleEquipment(FName ItemId)
+{
+    if (IsLocallyControlled()) ServerToggleEquipment(ItemId);
+}
+void ADeadlandsCharacter::ServerToggleEquipment_Implementation(FName ItemId)
+{
+    if (bIsDead || !EnsureItemInventory()) return;
+    const int32 Slot = ItemId == TEXT("Jacket") ? 0 : ItemId == TEXT("Pants") ? 1 : ItemId == TEXT("ArmorVest") ? 2 : INDEX_NONE;
+    if (Slot == INDEX_NONE) return;
+    TArray<FDeadlandsItemStack> UpdatedItems = Items;
+    TArray<FDeadlandsItemStack> UpdatedGear = EquippedGear;
+    UpdatedGear.SetNum(3);
+    if (UpdatedGear[Slot].ItemId == ItemId && UpdatedGear[Slot].Quantity > 0)
+    {
+        const int32 NewCapacity = GetSupplyCapacity() - (ItemId == TEXT("Jacket") ? 4 : ItemId == TEXT("Pants") ? 2 : 0);
+        if (!FDeadlandsItems::AddOne(UpdatedItems, ItemId, NewCapacity)) return;
+        UpdatedGear[Slot] = FDeadlandsItemStack();
+    }
+    else
+    {
+        if (!FDeadlandsItems::RemoveOne(UpdatedItems, ItemId)) return;
+        UpdatedGear[Slot].ItemId = ItemId;
+        UpdatedGear[Slot].Quantity = 1;
+    }
+    if (!FDeadlandsWorldPersistence::SaveEquipmentAndInventory(this, GetInventorySaveKey(), UpdatedGear, UpdatedItems)) return;
+    EquippedGear = MoveTemp(UpdatedGear);
+    Items = MoveTemp(UpdatedItems);
+    NotifyItemsChanged();
 }
 void ADeadlandsCharacter::RequestEquipBackpack()
 {

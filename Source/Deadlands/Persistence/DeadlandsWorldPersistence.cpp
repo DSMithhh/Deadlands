@@ -200,6 +200,30 @@ bool FDeadlandsWorldPersistence::SaveContainerSupplies(
     return bSaved;
 }
 
+bool FDeadlandsWorldPersistence::LoadEquipment(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out)
+{
+    if (!IsValid(Context) || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client || Key.IsEmpty()) return false;
+    const auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Context), 0));
+    if (!Save) return false;
+    const FDeadlandsItemInventory* Found = Save->SavedEquipment.Find(Key);
+    if (!Found) return false;
+    Out = Found->Stacks;
+    return true;
+}
+bool FDeadlandsWorldPersistence::SaveEquipmentAndInventory(const UObject* Context, const FString& Key,
+    const TArray<FDeadlandsItemStack>& Equipment, const TArray<FDeadlandsItemStack>& Items)
+{
+    if (!IsValid(Context) || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client || Key.IsEmpty()) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    if (!Save) return false;
+    FDeadlandsItemInventory& SavedGear = Save->SavedEquipment.FindOrAdd(Key);
+    SavedGear.Stacks = Equipment;
+    FDeadlandsItemInventory& SavedItems = Save->SavedInventories.FindOrAdd(Key);
+    SavedItems.Stacks = Items;
+    return UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+}
 bool FDeadlandsWorldPersistence::LoadInventory(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out)
 {
     if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;

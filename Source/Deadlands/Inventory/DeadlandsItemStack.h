@@ -35,20 +35,22 @@ struct FDeadlandsItems
         if (Id == TEXT("Bandage") || Id == TEXT("Antibiotics")) return 5;
         if (Id == TEXT("Ammo9mm") || Id == TEXT("Ammo12g")) return 30;
         if (Id == TEXT("Scrap") || Id == TEXT("Cloth")) return 20;
-        if (Id == TEXT("Backpack") || Id == TEXT("Pistol")) return 1;
+        if (Id == TEXT("Backpack") || Id == TEXT("Pistol") || Id == TEXT("Jacket") || Id == TEXT("Pants") || Id == TEXT("ArmorVest")) return 1;
         return 0;
     }
     // Whole-unit weights keep the existing save format and server transfer logic.
     static int32 Weight(FName Id)
     {
-        if (Id == TEXT("Tools") || Id == TEXT("Backpack")) return 4;
+        if (Id == TEXT("Tools") || Id == TEXT("Backpack") || Id == TEXT("ArmorVest")) return 4;
+        if (Id == TEXT("Jacket") || Id == TEXT("Pants")) return 2;
         if (Id == TEXT("Materials") || Id == TEXT("Scrap") || Id == TEXT("Pistol")) return 2;
         return 1;
     }
     static const TCHAR* Rarity(FName Id)
     {
         if (Id == TEXT("Pistol") || Id == TEXT("Antibiotics")) return TEXT("RARE");
-        if (Id == TEXT("Backpack") || Id == TEXT("Medicine")) return TEXT("UNCOMMON");
+        if (Id == TEXT("Backpack") || Id == TEXT("Medicine") || Id == TEXT("Jacket") || Id == TEXT("Pants")) return TEXT("UNCOMMON");
+        if (Id == TEXT("ArmorVest")) return TEXT("RARE");
         return TEXT("COMMON");
     }
     static bool Valid(const FDeadlandsItemStack& Stack)

@@ -10,6 +10,8 @@ public:
     static bool LoadSurvivalState(const UObject* Context, const FString& Key, bool& Backpack, float& Bleeding, float& Infection, int32& Durability);
     static bool SaveSurvivalState(const UObject* Context, const FString& Key, bool Backpack, float Bleeding, float Infection, int32 Durability);
     static bool SaveInventoryAndSurvivalState(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items, bool Backpack, float Bleeding, float Infection, int32 Durability);
+    static bool LoadEquipment(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out);
+    static bool SaveEquipmentAndInventory(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Equipment, const TArray<FDeadlandsItemStack>& Items);
     static bool LoadInventory(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out);
     static bool SaveInventory(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items);
     static bool TransferItem(const UObject* Context, const FString& SourceKey, const FString& DestinationKey, FName ItemId, int32 Capacity, TArray<FDeadlandsItemStack>& Source, TArray<FDeadlandsItemStack>& Destination);
