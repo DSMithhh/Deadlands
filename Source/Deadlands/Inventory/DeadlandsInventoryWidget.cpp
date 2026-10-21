@@ -449,7 +449,10 @@ void UDeadlandsInventoryWidget::SelectSlot15() { SelectIndex(15); }
 
 void UDeadlandsInventoryWidget::AssignQuickSlot(int32 Slot)
 {
-    if (QuickSlots.IsValidIndex(Slot) && !SelectedId.IsNone() && !bSelectedFromContainer)
+    const bool bUsable = SelectedId == TEXT("Food") || SelectedId == TEXT("Water") ||
+        SelectedId == TEXT("Medicine") || SelectedId == TEXT("Bandage") ||
+        SelectedId == TEXT("Antibiotics") || SelectedId == TEXT("Backpack");
+    if (QuickSlots.IsValidIndex(Slot) && bUsable && !bSelectedFromContainer)
         QuickSlots[Slot] = SelectedId;
     Refresh();
 }
