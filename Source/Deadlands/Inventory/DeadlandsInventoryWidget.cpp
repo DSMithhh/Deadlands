@@ -183,13 +183,24 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         CraftActions->AddChildToHorizontalBox(Action);
         return Action;
     };
-    UButton* BackpackButton = AddAction(TEXT(" EQUIP BAG "));
+    UHorizontalBox* EquipmentActions = WidgetTree->ConstructWidget<UHorizontalBox>();
+    Column->InsertChildAt(4, EquipmentActions);
+    auto AddEquipmentAction = [&](const TCHAR* Title)
+    {
+        UButton* Action = WidgetTree->ConstructWidget<UButton>();
+        UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>();
+        Label->SetText(FText::FromString(Title));
+        Action->AddChild(Label);
+        EquipmentActions->AddChildToHorizontalBox(Action);
+        return Action;
+    };
+    UButton* BackpackButton = AddEquipmentAction(TEXT(" BACKPACK "));
     BackpackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::EquipBackpack);
-    UButton* JacketButton = AddAction(TEXT(" JACKET "));
+    UButton* JacketButton = AddEquipmentAction(TEXT(" JACKET "));
     JacketButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ToggleJacket);
-    UButton* PantsButton = AddAction(TEXT(" PANTS "));
+    UButton* PantsButton = AddEquipmentAction(TEXT(" PANTS "));
     PantsButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TogglePants);
-    UButton* VestButton = AddAction(TEXT(" ARMOR VEST "));
+    UButton* VestButton = AddEquipmentAction(TEXT(" ARMOR VEST "));
     VestButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ToggleArmor);
     UButton* BandageButton = AddAction(TEXT(" BANDAGE "));
     BandageButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftBandage);
