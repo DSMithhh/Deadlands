@@ -85,6 +85,18 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PutLabel->SetText(FText::FromString(TEXT(" PUT ONE ")));
     PutButton->AddChild(PutLabel);
     TakeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeOne);
+    UButton* TakeFiveButton = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* TakeFiveLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    TakeFiveLabel->SetText(FText::FromString(TEXT(" TAKE UP TO 5 ")));
+    TakeFiveButton->AddChild(TakeFiveLabel);
+    Buttons->AddChildToHorizontalBox(TakeFiveButton);
+    TakeFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeFive);
+    UButton* PutFiveButton = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* PutFiveLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    PutFiveLabel->SetText(FText::FromString(TEXT(" PUT UP TO 5 ")));
+    PutFiveButton->AddChild(PutFiveLabel);
+    Buttons->AddChildToHorizontalBox(PutFiveButton);
+    PutFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutFive);
     PutButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutOne);
     UButton* TakeStackButton = WidgetTree->ConstructWidget<UButton>();
     UButton* PutStackButton = WidgetTree->ConstructWidget<UButton>();
@@ -409,3 +421,14 @@ void UDeadlandsInventoryWidget::SelectSlot28() { SelectIndex(28); }
 void UDeadlandsInventoryWidget::SelectSlot29() { SelectIndex(29); }
 void UDeadlandsInventoryWidget::SelectSlot30() { SelectIndex(30); }
 void UDeadlandsInventoryWidget::SelectSlot31() { SelectIndex(31); }
+
+void UDeadlandsInventoryWidget::TakeFive()
+{
+    if (Survivor && LootContainer && !SelectedId.IsNone())
+        Survivor->RequestItemTransfer(LootContainer, SelectedId, true, 5);
+}
+void UDeadlandsInventoryWidget::PutFive()
+{
+    if (Survivor && LootContainer && !SelectedId.IsNone())
+        Survivor->RequestItemTransfer(LootContainer, SelectedId, false, 5);
+}
