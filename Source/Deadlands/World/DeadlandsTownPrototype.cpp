@@ -152,6 +152,36 @@ ADeadlandsTownPrototype::ADeadlandsTownPrototype()
             FVector(X, Y, 95), FVector(80, 75, 80));
     }
 
+    // Pack 20: shrubs, young trees and debris kept outside the main roads.
+    for (int32 I = 0; I < 18; ++I)
+    {
+        const float X = -2750.f + (I % 9) * 650.f;
+        const float Y = (I < 9) ? 2040.f : -2070.f;
+        const float Spread = (I % 3 - 1) * 55.f;
+        AddBlock(FString::Printf(TEXT("ShrubStem_%d"), I),
+            FVector(X, Y + Spread, 48), FVector(24, 24, 96));
+        AddBlock(FString::Printf(TEXT("ShrubLeaves_%d"), I),
+            FVector(X, Y + Spread, 122), FVector(155, 145, 115));
+        if (I % 3 == 0)
+        {
+            AddBlock(FString::Printf(TEXT("ShrubBranch_%d"), I),
+                FVector(X + 48.f, Y + Spread, 107), FVector(95, 34, 32),
+                FRotator(0, 0, 24));
+        }
+    }
+
+    // Uneven piles of discarded lumber and rubble near the back lots.
+    for (int32 I = 0; I < 9; ++I)
+    {
+        const float X = -2450.f + I * 590.f;
+        const float Y = (I % 2 == 0) ? 1910.f : -1900.f;
+        AddBlock(FString::Printf(TEXT("DebrisPlank_%d"), I),
+            FVector(X, Y, 22), FVector(155, 35, 32), FRotator(0, I * 23.f, 5.f));
+        AddBlock(FString::Printf(TEXT("Rubble_%d"), I),
+            FVector(X + 78.f, Y + 38.f, 22), FVector(65, 70, 42),
+            FRotator(0, I * 37.f, 0));
+    }
+
     // Simple perimeter silhouettes, placed away from the main walkable streets.
     for (int32 I = 0; I < 14; ++I)
     {
@@ -204,6 +234,52 @@ void ADeadlandsTownPrototype::AddBuilding(const FString& Name, const FVector& Ce
         FVector(DoorWidth, Wall, 70.f));
     AddBlock(Name + TEXT("_Roof"), FVector(Center.X, Center.Y, Height + 16.f),
         FVector(Width + 70.f, Depth + 70.f, 32.f));
+    // Pack 20: raised roof profile, porch and awning. Existing flat roof
+    // remains underneath as a weatherproof ceiling for accessible interiors.
+    const float FrontDirection = FrontY > Center.Y ? 1.f : -1.f;
+    if (!bShop)
+    {
+        const float RoofSlope = 20.f;
+        const float RoofWidth = Width * 0.54f;
+        AddBlock(Name + TEXT("_PitchedRoofLeft"),
+            FVector(Center.X - Width * 0.25f, Center.Y, Height + 110.f),
+            FVector(RoofWidth, Depth + 95.f, 26.f),
+            FRotator(0, 0, RoofSlope));
+        AddBlock(Name + TEXT("_PitchedRoofRight"),
+            FVector(Center.X + Width * 0.25f, Center.Y, Height + 110.f),
+            FVector(RoofWidth, Depth + 95.f, 26.f),
+            FRotator(0, 0, -RoofSlope));
+        AddBlock(Name + TEXT("_PorchDeck"),
+            FVector(Center.X, FrontY + FrontDirection * 170.f, 12.f),
+            FVector(390, 300, 24));
+        for (int32 Side : {-1, 1})
+        {
+            AddBlock(Name + FString::Printf(TEXT("_PorchPost_%d"), Side),
+                FVector(Center.X + Side * 175.f,
+                    FrontY + FrontDirection * 285.f, 125.f),
+                FVector(25, 25, 250));
+        }
+        AddBlock(Name + TEXT("_PorchCover"),
+            FVector(Center.X, FrontY + FrontDirection * 170.f, 262.f),
+            FVector(440, 320, 25));
+        AddBlock(Name + TEXT("_Chimney"),
+            FVector(Center.X + Width * 0.30f, Center.Y + Depth * 0.18f,
+                Height + 135.f), FVector(95, 95, 270));
+    }
+    else
+    {
+        AddBlock(Name + TEXT("_StoreAwning"),
+            FVector(Center.X, FrontY + FrontDirection * 135.f, Height - 65.f),
+            FVector(Width * 0.60f, 260, 22));
+        for (int32 Side : {-1, 1})
+            AddBlock(Name + FString::Printf(TEXT("_AwningBracket_%d"), Side),
+                FVector(Center.X + Side * Width * 0.24f,
+                    FrontY + FrontDirection * 85.f, Height - 115.f),
+                FVector(18, 130, 80));
+        AddBlock(Name + TEXT("_RoofVent"),
+            FVector(Center.X + Width * 0.28f, Center.Y, Height + 60.f),
+            FVector(120, 95, 85));
+    }
     // Architectural trim sits on existing walls; door opening remains unobstructed.
     const float DoorFrameX = DoorWidth * 0.5f + 8.f;
     const float FrontSign = (FrontY > Center.Y) ? 1.f : -1.f;
