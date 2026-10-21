@@ -268,6 +268,16 @@ void ADeadlandsCharacter::OnRep_Supplies()
 
 FString ADeadlandsCharacter::GetInventorySaveKey() const
 {
+    if (GetWorld() && GetWorld()->WorldType == EWorldType::PIE)
+    {
+        int32 Slot = 0;
+        for (auto It = GetWorld()->GetPlayerControllerIterator(); It; ++It, ++Slot)
+        {
+            if (It->Get() == GetController())
+                return FString::Printf(TEXT("Player|PIE|%d"), Slot);
+        }
+        return FString();
+    }
     const APlayerState* PS = GetPlayerState();
     if (!PS) return FString();
     // Stable network identity when online; deterministic player name for PIE.
