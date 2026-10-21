@@ -489,3 +489,48 @@ void UDeadlandsInventoryWidget::ToggleCraftActions()
     if (CraftActions)
         CraftActions->SetVisibility(CraftActions->GetVisibility() == ESlateVisibility::Collapsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
+
+void UDeadlandsInventoryWidget::SelectTile(bool bContainer, int32 Index)
+{
+ if(!Survivor)return;
+ const TArray<FDeadlandsItemStack> Stacks=bContainer?(LootContainer?LootContainer->GetItems():TArray<FDeadlandsItemStack>()):Survivor->GetItems();
+ SelectedId=Stacks.IsValidIndex(Index)?Stacks[Index].ItemId:NAME_None;
+ bSelectedFromContainer=bContainer;
+ GridSignature.Empty();
+ Refresh();
+}
+void UDeadlandsInventoryWidget::TransferTile(bool bContainer,FName ItemId,int32 Quantity)
+{
+ if(!Survivor||!IsValid(LootContainer)||ItemId.IsNone())return;
+ Survivor->RequestItemTransfer(LootContainer,ItemId,bContainer,FMath::Clamp(Quantity,1,30));
+ StatusMessage=FString::Printf(TEXT("%s %s x%d"),bContainer?TEXT("TAKING"):TEXT("STORING"),*ItemId.ToString(),Quantity);
+}
+bool UDeadlandsInventoryWidget::DropTile(bool bSourceContainer,int32 SourceIndex,FName ItemId,bool bStack,bool bDestinationContainer,int32 DestinationIndex)
+{
+ if(!Survivor||ItemId.IsNone()||SourceIndex<0||DestinationIndex<0||DestinationIndex>=16)return false;
+ const TArray<FDeadlandsItemStack> Source=bSourceContainer?(LootContainer?LootContainer->GetItems():TArray<FDeadlandsItemStack>()):Survivor->GetItems();
+ if(!Source.IsValidIndex(SourceIndex)||Source[SourceIndex].ItemId!=ItemId)return false;
+ if(bSourceContainer!=bDestinationContainer)
+ {
+  if(!IsValid(LootContainer))return false;
+  TransferTile(bSourceContainer,ItemId,bStack?Source[SourceIndex].Quantity:1);
+  return true;
+ }
+ if(SourceIndex==DestinationIndex)return true;
+ if(!bSourceContainer||IsValid(LootContainer))
+ {
+  Survivor->RequestReorderItem(bSourceContainer,LootContainer,SourceIndex,DestinationIndex);
+  StatusMessage=TEXT("REARRANGING ITEMS");
+  return true;
+ }
+ return false;
+}
+void UDeadlandsInventoryWidget::TakeAll()
+{
+ if(!Survivor||!IsValid(LootContainer))return;
+ TArray<FDeadlandsItemStack> Stacks=LootContainer->GetItems();
+ for(const auto& Stack:Stacks)
+  if(FDeadlandsItems::Valid(Stack))
+   Survivor->RequestItemTransfer(LootContainer,Stack.ItemId,true,FMath::Min(Stack.Quantity,30));
+ StatusMessage=TEXT("TAKE ALL REQUESTED - LIMITED BY CAPACITY");
+}
