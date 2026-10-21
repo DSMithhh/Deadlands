@@ -54,7 +54,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         Column->AddChildToVerticalBox(Label);
         return Label;
     };
-    Header = MakeText(TEXT("DEADLANDS  /  INVENTORY  |  [B] BUILD MODE  [1-5] PIECE  [Q/E] ROTATE  [ENTER] PLACE  [X] REMOVE  [TAB] CLOSE"));
+    Header = MakeText(TEXT("DEADLANDS  /  INVENTORY  |  [B] BUILD MODE  [1-5] PIECE  [Q/E] ROTATE  [LMB] PLACE  [RMB] CANCEL  [X] REMOVE  [TAB] CLOSE"));
     Header->SetColorAndOpacity(FSlateColor(FLinearColor(0.86f, 0.72f, 0.43f)));
     PlayerList = MakeText(TEXT("SURVIVOR"));
     ContainerList = MakeText(TEXT("NEARBY LOOT"));
