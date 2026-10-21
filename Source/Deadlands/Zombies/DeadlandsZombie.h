@@ -115,7 +115,9 @@ private:
     float StaggerDuration = 0.65f;
     float AttackWindupSeconds = 0.55f;
     float KnockbackStrength = 350.f;
-    bool bFastVariant = false;
+    UPROPERTY(ReplicatedUsing=OnRep_Variant) bool bFastVariant = false;
+    UPROPERTY(ReplicatedUsing=OnRep_Variant) bool bRareVariant = false;
+    UFUNCTION() void OnRep_Variant();
     void BroadcastAlert(const FVector& Location);
     bool CanSeePlayer(const ADeadlandsCharacter* Player) const;
     FVector ChooseSteering(const FVector& Desired) const;
