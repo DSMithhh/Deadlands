@@ -10,8 +10,6 @@ Creates /Game/Maps/L_DeadlandsTown.umap. Does NOT modify L_TestLab.
 import unreal
 
 MAP_PATH = "/Game/Maps/L_DeadlandsTown"
-editor = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
-level_editor = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 
 # Do not silently overwrite a map someone may have edited.
 if unreal.EditorAssetLibrary.does_asset_exist(MAP_PATH):
