@@ -170,6 +170,28 @@ void ADeadlandsContainer::ApplyState()
     OnContainerStateChanged(bOpen);
 }
 
+bool ADeadlandsContainer::ReorderSlots(int32 Source, int32 Destination)
+{
+ if(!HasAuthority()||!bOpen||Source<0||Source>=Items.Num()||Destination<0||Destination>=16||Source==Destination)return false;
+ TArray<FDeadlandsItemStack> NewItems=Items;
+ if(!FDeadlandsItems::Valid(NewItems[Source]))return false;
+ NewItems.SetNum(FMath::Max(NewItems.Num(),Destination+1));
+ if(NewItems[Destination].ItemId==NewItems[Source].ItemId)
+ {
+  const int32 Space=FDeadlandsItems::MaxStack(NewItems[Destination].ItemId)-NewItems[Destination].Quantity;
+  if(Space>0)
+  {
+   const int32 Moved=FMath::Min(Space,NewItems[Source].Quantity);
+   NewItems[Destination].Quantity+=Moved;NewItems[Source].Quantity-=Moved;
+   if(NewItems[Source].Quantity==0)NewItems[Source].ItemId=NAME_None;
+  }
+  else Swap(NewItems[Source],NewItems[Destination]);
+ }
+ else Swap(NewItems[Source],NewItems[Destination]);
+ while(!NewItems.IsEmpty()&&NewItems.Last().ItemId.IsNone())NewItems.Pop();
+ if(!FDeadlandsWorldPersistence::SaveInventory(this,TEXT("Container|")+GetPersistenceKey(),NewItems))return false;
+ Items=MoveTemp(NewItems);OnContainerItemsChanged();ForceNetUpdate();return true;
+}
 bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity)
 {
     if (!HasAuthority() || !IsValid(Character) || !bOpen ||
@@ -194,7 +216,7 @@ bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Characte
     }
     if (bAny)
     {
-        if (bCorpseBag && Items.IsEmpty())
+        if (bCorpseBag && FDeadlandsItems::Total(Items) == 0)
         {
             FDeadlandsWorldPersistence::UnregisterCorpseBag(this, GetPersistenceKey());
             SetLifeSpan(12.f);
