@@ -11,6 +11,8 @@ struct FDeadlandsSavedBarricade
  GENERATED_BODY()
  UPROPERTY() FTransform Transform=FTransform::Identity;
  UPROPERTY() float Health=200.f;
+ UPROPERTY() uint8 PieceType=0;
+ UPROPERTY() bool bDoorOpen=false;
 };
 
 /** Server-owned world state. New persistent actor types can add additional maps. */
