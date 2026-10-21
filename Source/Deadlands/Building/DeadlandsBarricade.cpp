@@ -30,7 +30,8 @@ void ADeadlandsBarricade::SetPieceType(EDeadlandsBuildPiece NewType,bool bOpen)
  else if(PieceType==EDeadlandsBuildPiece::Door)Scale=FVector(.16f,1.05f,2.2f);
  else if(PieceType==EDeadlandsBuildPiece::Storage)Scale=FVector(.95f,.7f,.7f);
  Mesh->SetRelativeScale3D(Scale);
- Mesh->SetCollisionEnabled(PieceType==EDeadlandsBuildPiece::Door&&bDoorOpen?ECollisionEnabled::NoCollision:ECollisionEnabled::QueryAndPhysics);
+ Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+ Mesh->SetCollisionResponseToChannel(ECC_Pawn,PieceType==EDeadlandsBuildPiece::Door&&bDoorOpen?ECR_Ignore:ECR_Block);
 }
 void ADeadlandsBarricade::BeginPlay(){Super::BeginPlay();RefreshVisual();}
 void ADeadlandsBarricade::OnRep_Health(){SetPieceType(PieceType,bDoorOpen);RefreshVisual();}
