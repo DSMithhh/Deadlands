@@ -1079,6 +1079,18 @@ void ADeadlandsCharacter::ServerPlaceBarricade_Implementation(uint8 Type,float R
  for(int32 i=0;i<ScrapCost;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Scrap")))return;
  const FString Id=FGuid::NewGuid().ToString();
  if(!FDeadlandsWorldPersistence::SaveBarricade(this,Id,Transform,200.f,Type,false))return;
+ if(Type==4)
+ {
+  ADeadlandsContainer* Storage=GetWorld()->SpawnActorDeferred<ADeadlandsContainer>(
+   ADeadlandsContainer::StaticClass(),Transform,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+  if(!Storage){FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
+  Storage->ConfigureBuiltStorage(FName(*Id));
+  if(!FDeadlandsWorldPersistence::SaveInventory(this,GetInventorySaveKey(),Updated))
+  {Storage->Destroy();FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
+  Storage->FinishSpawning(Transform);
+ }
+ else
+ {
  ADeadlandsBarricade* Piece=GetWorld()->SpawnActorDeferred<ADeadlandsBarricade>(
   ADeadlandsBarricade::StaticClass(),Transform,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
  if(!Piece){FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
@@ -1088,6 +1100,7 @@ void ADeadlandsCharacter::ServerPlaceBarricade_Implementation(uint8 Type,float R
  }
  Piece->InitializeSaved(Id,200.f,static_cast<EDeadlandsBuildPiece>(Type),false);
  Piece->FinishSpawning(Transform);
+ }
  Items=MoveTemp(Updated);NotifyItemsChanged();
 }
 void ADeadlandsCharacter::DismantleBarricade()
