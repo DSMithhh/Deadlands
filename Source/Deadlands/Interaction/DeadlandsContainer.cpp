@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Persistence/DeadlandsWorldPersistence.h"
 #include "Net/UnrealNetwork.h"
+#include "UObject/ConstructorHelpers.h"
 
 ADeadlandsContainer::ADeadlandsContainer()
 {
@@ -11,6 +12,8 @@ ADeadlandsContainer::ADeadlandsContainer()
     ContainerMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ContainerMesh"));
     RootComponent = ContainerMesh;
     ContainerMesh->SetCollisionProfileName(TEXT("BlockAll"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if (Cube.Succeeded()) ContainerMesh->SetStaticMesh(Cube.Object);
 }
 
 void ADeadlandsContainer::ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile)
