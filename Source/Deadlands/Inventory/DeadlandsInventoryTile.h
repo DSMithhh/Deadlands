@@ -14,6 +14,7 @@ class DEADLANDS_API UDeadlandsInventoryTile : public UUserWidget
 public:
     void Configure(UDeadlandsInventoryWidget* Owner, bool bContainer, int32 Index, FName Id, int32 Quantity);
     void SetSelected(bool bSelected);
+    void ConfigureEquipment(UDeadlandsInventoryWidget* Owner, int32 EquipmentSlot, FName EquippedId);
 protected:
     virtual void NativeOnInitialized() override;
     virtual FReply NativeOnMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& Event) override;
@@ -30,6 +31,7 @@ private:
     int32 SlotIndex = INDEX_NONE;
     int32 Count = 0;
     bool bContainerTile = false;
+    bool bEquipmentTile = false;
     bool bHighlighted = false;
     bool bDragHighlighted = false;
     void UpdateAppearance();
