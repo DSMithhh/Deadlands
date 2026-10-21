@@ -92,6 +92,26 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     DropButton->AddChild(DropLabel);
     Column->AddChildToVerticalBox(DropButton);
     DropButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::DropSelected);
+    auto AddAction = [&](const TCHAR* Title)
+    {
+        UButton* Action = WidgetTree->ConstructWidget<UButton>();
+        UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>();
+        Label->SetText(FText::FromString(Title));
+        Action->AddChild(Label);
+        Column->AddChildToVerticalBox(Action);
+        // Dynamic delegates require explicit member-function bindings below.
+        return Action;
+    };
+    UButton* BackpackButton = AddAction(TEXT(" EQUIP / UNEQUIP BACKPACK "));
+    BackpackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::EquipBackpack);
+    UButton* BandageButton = AddAction(TEXT(" CRAFT BANDAGE (2 CLOTH) "));
+    BandageButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftBandage);
+    UButton* ToolsButton = AddAction(TEXT(" CRAFT TOOLS (3 SCRAP + 2 MATERIALS) "));
+    ToolsButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftTools);
+    UButton* MedicineButton = AddAction(TEXT(" CRAFT MEDICINE (2 BANDAGES + ANTIBIOTICS) "));
+    MedicineButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftMedicine);
+    UButton* RepairButton = AddAction(TEXT(" REPAIR TOOLS (SCRAP + MATERIALS) "));
+    RepairButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::RepairTools);
     Refresh();
 }
 
@@ -118,8 +138,8 @@ void UDeadlandsInventoryWidget::Refresh()
         return Result;
     };
     if (Survivor)
-        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("YOUR ITEMS (WEIGHT %d/%d):%s"),
-            FDeadlandsItems::TotalWeight(Survivor->GetItems()), Survivor->GetSupplyCapacity(), *Format(Survivor->GetItems()))));
+        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("YOUR ITEMS (WEIGHT %d/%d) | BACKPACK %s | BLEED %.0f | INFECTION %.0f | TOOLS %d%%:%s"),
+            FDeadlandsItems::TotalWeight(Survivor->GetItems()), Survivor->GetSupplyCapacity(), Survivor->HasEquippedBackpack() ? TEXT("ON") : TEXT("OFF"), Survivor->GetBleeding(), Survivor->GetInfection(), Survivor->GetToolDurability(), *Format(Survivor->GetItems()))));
     ContainerList->SetText(FText::FromString(LootContainer
         ? TEXT("CONTAINER:") + Format(LootContainer->GetItems())
         : TEXT("CONTAINER: (look at a container and press F)")));
@@ -188,3 +208,9 @@ void UDeadlandsInventoryWidget::DropSelected()
     if (Survivor && ItemPicker)
         Survivor->RequestDropItem(FName(*ItemPicker->GetSelectedOption()));
 }
+
+void UDeadlandsInventoryWidget::EquipBackpack() { if (Survivor) Survivor->RequestEquipBackpack(); }
+void UDeadlandsInventoryWidget::CraftBandage() { if (Survivor) Survivor->RequestCraft(TEXT("Bandage")); }
+void UDeadlandsInventoryWidget::CraftTools() { if (Survivor) Survivor->RequestCraft(TEXT("Tools")); }
+void UDeadlandsInventoryWidget::CraftMedicine() { if (Survivor) Survivor->RequestCraft(TEXT("Medicine")); }
+void UDeadlandsInventoryWidget::RepairTools() { if (Survivor) Survivor->RequestRepairTools(); }
