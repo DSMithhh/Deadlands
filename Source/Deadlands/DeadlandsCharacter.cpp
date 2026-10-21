@@ -23,6 +23,8 @@
 #include "Survival/DeadlandsVitalsComponent.h"
 #include "Interaction/DeadlandsInteractionPrompt.h"
 #include "Inventory/DeadlandsWorldPickup.h"
+#include "Building/DeadlandsBarricade.h"
+#include "Misc/Guid.h"
 #include "TimerManager.h"
 #include "Zombies/DeadlandsZombie.h"
 #include "EngineUtils.h"
@@ -85,6 +87,8 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ADeadlandsCharacter::BeginSprint);
     PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ADeadlandsCharacter::EndSprint);
     PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ADeadlandsCharacter::ToggleFlashlight);
+    PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ADeadlandsCharacter::PlaceBarricade);
+    PlayerInputComponent->BindKey(EKeys::X, IE_Pressed, this, &ADeadlandsCharacter::DismantleBarricade);
     PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
     PlayerInputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &ADeadlandsCharacter::ToggleCrouch);
@@ -975,4 +979,56 @@ void ADeadlandsCharacter::ServerRepairTools_Implementation()
     if (!HasTools || !FDeadlandsItems::RemoveOne(Updated, TEXT("Scrap")) ||
         !FDeadlandsItems::RemoveOne(Updated, TEXT("Materials"))) return;
     SaveSurvivalAndItems(Updated, bBackpackEquipped, Bleeding, Infection, 100);
+}
+
+void ADeadlandsCharacter::PlaceBarricade()
+{
+ if(IsLocallyControlled())ServerPlaceBarricade();
+}
+void ADeadlandsCharacter::ServerPlaceBarricade_Implementation()
+{
+ if(bIsDead||!GetWorld()||!EnsureItemInventory())return;
+ TArray<FDeadlandsItemStack> Updated=Items;
+ for(int32 i=0;i<3;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Materials")))return;
+ for(int32 i=0;i<2;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Scrap")))return;
+ const FVector Eye=GetPawnViewLocation();
+ const FVector Direction=GetBaseAimRotation().Vector();
+ FHitResult Hit;
+ FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsBuildPlacement),false,this);
+ if(!GetWorld()->LineTraceSingleByChannel(Hit,Eye,Eye+Direction*450.f,ECC_Visibility,Params))return;
+ if(!Hit.bBlockingHit||Hit.GetActor()==this)return;
+ const FVector GroundLocation=Hit.ImpactPoint+Hit.ImpactNormal*16.f;
+ const FRotator Rotation(0.f,GetBaseAimRotation().Yaw+90.f,0.f);
+ const FVector Location=GroundLocation+FVector(0.f,0.f,75.f);
+ const FCollisionShape Shape=FCollisionShape::MakeBox(FVector(14.f,110.f,76.f));
+ FCollisionQueryParams BlockParams(SCENE_QUERY_STAT(DeadlandsBuildObstruction),false,this);
+ if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldStatic,Shape,BlockParams))return;
+ if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldDynamic,Shape,BlockParams))return;
+ const FTransform Transform(Rotation,Location);
+ const FString Id=FGuid::NewGuid().ToString();
+ if(!FDeadlandsWorldPersistence::SaveBarricade(this,Id,Transform,200.f))return;
+ ADeadlandsBarricade* Barricade=GetWorld()->SpawnActorDeferred<ADeadlandsBarricade>(
+  ADeadlandsBarricade::StaticClass(),Transform,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+ if(!Barricade){FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
+ if(!FDeadlandsWorldPersistence::SaveInventory(this,GetInventorySaveKey(),Updated))
+ {
+  Barricade->Destroy();FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;
+ }
+ Barricade->InitializeSaved(Id,200.f);
+ Barricade->FinishSpawning(Transform);
+ Items=MoveTemp(Updated);NotifyItemsChanged();
+}
+void ADeadlandsCharacter::DismantleBarricade()
+{
+ if(IsLocallyControlled())ServerDismantleBarricade();
+}
+void ADeadlandsCharacter::ServerDismantleBarricade_Implementation()
+{
+ if(bIsDead||!GetWorld())return;
+ const FVector Eye=GetPawnViewLocation();
+ FHitResult Hit;
+ FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsDismantle),false,this);
+ if(!GetWorld()->LineTraceSingleByChannel(Hit,Eye,Eye+GetBaseAimRotation().Vector()*260.f,ECC_Visibility,Params))return;
+ if(ADeadlandsBarricade* Barricade=Cast<ADeadlandsBarricade>(Hit.GetActor()))
+  Barricade->Dismantle(this);
 }
