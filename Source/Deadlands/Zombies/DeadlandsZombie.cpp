@@ -398,6 +398,7 @@ void ADeadlandsZombie::CreateCorpseLoot()
     Bag->ConfigureCorpseLoot(DropId, Rolled, false);
     Bag->FinishSpawning(FTransform(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, -76.f)));
     CorpseLoot = Bag;
+    FDeadlandsWorldPersistence::RegisterCorpseBag(this, DropId.ToString(), Bag->GetActorLocation());
     ForceNetUpdate();
 }
 void ADeadlandsZombie::ApplyDeathVisual()
