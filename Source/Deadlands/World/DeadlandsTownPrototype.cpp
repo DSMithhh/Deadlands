@@ -50,6 +50,108 @@ ADeadlandsTownPrototype::ADeadlandsTownPrototype()
     AddBlock(TEXT("HouseTable"), FVector(-1950, 1120, 60), FVector(240, 160, 115));
     AddBlock(TEXT("HouseBed"), FVector(1540, 1350, 45), FVector(280, 190, 85));
 
+    // Pack 17: roadside edges, street furniture, and believable neighborhood silhouettes.
+    // Keep all obstacles clear of the main travel lanes and front door openings.
+    for (int32 I = -5; I <= 5; ++I)
+    {
+        const float X = I * 540.f;
+        if (FMath::Abs(X - 200.f) < 500.f) continue; // Crossroad stays open.
+        for (int32 Side : {-1, 1})
+        {
+            const float Y = Side * 502.f;
+            AddBlock(FString::Printf(TEXT("Curb_%d_%d"), I, Side),
+                FVector(X, Y, 16), FVector(480, 20, 30));
+        }
+    }
+
+    // Secondary-road curbs: leave the main intersection open.
+    for (int32 I : {-3, -2, 2, 3})
+    {
+        for (int32 Side : {-1, 1})
+        {
+            AddBlock(FString::Printf(TEXT("CrossCurb_%d_%d"), I, Side),
+                FVector(200.f + Side * 415.f, I * 520.f, 16),
+                FVector(22, 420, 30));
+        }
+    }
+
+    // Wooden fence sections along rear yards, with gaps for traversal.
+    for (int32 I = 0; I < 5; ++I)
+    {
+        const float X = -2750.f + I * 290.f;
+        AddBlock(FString::Printf(TEXT("WestFencePost_%d"), I),
+            FVector(X, 1790, 85), FVector(22, 22, 170));
+        if (I < 4)
+            AddBlock(FString::Printf(TEXT("WestFenceRail_%d"), I),
+                FVector(X + 145.f, 1790, 85), FVector(270, 12, 16));
+    }
+    for (int32 I = 0; I < 5; ++I)
+    {
+        const float X = 1050.f + I * 290.f;
+        AddBlock(FString::Printf(TEXT("EastFencePost_%d"), I),
+            FVector(X, 1810, 85), FVector(22, 22, 170));
+        if (I < 4)
+            AddBlock(FString::Printf(TEXT("EastFenceRail_%d"), I),
+                FVector(X + 145.f, 1810, 85), FVector(270, 12, 16));
+    }
+
+    // Power poles and suspended-cable proxies run outside the street.
+    for (int32 I = 0; I < 5; ++I)
+    {
+        const float X = -2600.f + I * 1250.f;
+        AddBlock(FString::Printf(TEXT("PowerPole_%d"), I),
+            FVector(X, -620, 380), FVector(36, 36, 760));
+        AddBlock(FString::Printf(TEXT("PowerCrossarm_%d"), I),
+            FVector(X, -620, 675), FVector(28, 260, 22));
+        if (I < 4)
+            AddBlock(FString::Printf(TEXT("PowerLine_%d"), I),
+                FVector(X + 625.f, -720, 690), FVector(1230, 6, 6));
+    }
+
+    // Abandoned cars: blocky silhouettes built from separate body, cabin and wheels.
+    // Parked off the main road so players and zombies can still move through town.
+    struct FCarLocation { float X; float Y; float Yaw; };
+    const FCarLocation Cars[] = {
+        {-2400.f, -820.f, 0.f}, {2520.f, 830.f, 90.f},
+        {2400.f, -1860.f, 0.f}
+    };
+    for (int32 I = 0; I < 3; ++I)
+    {
+        const FVector CarCenter(Cars[I].X, Cars[I].Y, 0);
+        const FRotator CarRotation(0, Cars[I].Yaw, 0);
+        // Body/cabin geometry rotates around its own centre. Wheels are visual proxies.
+        AddBlock(FString::Printf(TEXT("CarBody_%d"), I),
+            CarCenter + FVector(0, 0, 75), FVector(400, 180, 95), CarRotation);
+        AddBlock(FString::Printf(TEXT("CarCabin_%d"), I),
+            CarCenter + FVector(0, 0, 155), FVector(235, 155, 70), CarRotation);
+        for (int32 Axle : {-1, 1})
+            for (int32 Side : {-1, 1})
+            {
+                const FVector WheelOffset = CarRotation.RotateVector(
+                    FVector(Axle * 125.f, Side * 92.f, 38.f));
+                AddBlock(FString::Printf(TEXT("CarWheel_%d_%d_%d"), I, Axle, Side),
+                    CarCenter + WheelOffset, FVector(62, 28, 70), CarRotation);
+            }
+    }
+
+    // Gas station signs and forecourt safety bollards.
+    AddBlock(TEXT("FuelPriceSignPost"), FVector(2350, -700, 190), FVector(34, 34, 380));
+    AddBlock(TEXT("FuelPriceSignFace"), FVector(2350, -700, 390), FVector(160, 32, 180));
+    for (int32 I = 0; I < 4; ++I)
+        AddBlock(FString::Printf(TEXT("ForecourtBollard_%d"), I),
+            FVector(1020.f + I * 260.f, -90, 50), FVector(28, 28, 100));
+
+    // Low debris and abandoned planters outside entry paths.
+    for (int32 I = 0; I < 8; ++I)
+    {
+        const float X = -2650.f + I * 700.f;
+        const float Y = (I % 2 == 0) ? 680.f : -680.f;
+        AddBlock(FString::Printf(TEXT("Planter_%d"), I),
+            FVector(X, Y, 35), FVector(110, 90, 70));
+        AddBlock(FString::Printf(TEXT("Overgrowth_%d"), I),
+            FVector(X, Y, 95), FVector(80, 75, 80));
+    }
+
     // Simple perimeter silhouettes, placed away from the main walkable streets.
     for (int32 I = 0; I < 14; ++I)
     {
