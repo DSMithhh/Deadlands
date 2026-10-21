@@ -79,6 +79,13 @@ public:
     UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
     void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestEquipBackpack();
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestCraft(FName Recipe);
+    UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestRepairTools();
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival") bool HasEquippedBackpack() const { return bBackpackEquipped; }
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival") float GetBleeding() const { return Bleeding; }
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival") float GetInfection() const { return Infection; }
+    UFUNCTION(BlueprintPure, Category="Deadlands|Survival") int32 GetToolDurability() const { return ToolCondition; }
     void CloseInventory();
     UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
     void RequestConsumeItem(FName ItemId);
@@ -112,13 +119,19 @@ public:
     int32 GetSupplies() const { return Supplies; }
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
-    int32 GetSupplyCapacity() const { return SupplyCapacity; }
+    int32 GetSupplyCapacity() const { return SupplyCapacity + (bBackpackEquipped ? 20 : 0); }
 
 protected:
     UPROPERTY(ReplicatedUsing=OnRep_Items, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Inventory")
     TArray<FDeadlandsItemStack> Items;
 
     bool bItemsLoaded = false;
+    UPROPERTY(Replicated) bool bBackpackEquipped = false;
+    UPROPERTY(Replicated) float Bleeding = 0.f;
+    UPROPERTY(Replicated) float Infection = 0.f;
+    UPROPERTY(Replicated) int32 ToolCondition = 100;
+    float ConditionSaveClock = 0.f;
+    bool SaveSurvivalAndItems(const TArray<FDeadlandsItemStack>& NewItems, bool NewBackpack, float NewBleeding, float NewInfection, int32 NewCondition);
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Vitals")
     TObjectPtr<UDeadlandsVitalsComponent> Vitals;
     UPROPERTY(Transient)
@@ -206,6 +219,9 @@ protected:
     void ToggleInventory();
     void ToggleCrouch();
     UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);
+    UFUNCTION(Server, Reliable) void ServerEquipBackpack();
+    UFUNCTION(Server, Reliable) void ServerCraft(FName Recipe);
+    UFUNCTION(Server, Reliable) void ServerRepairTools();
     UFUNCTION(Server, Reliable) void ServerDropItem(FName ItemId);
     void ShowInventory(ADeadlandsContainer* Container);
 
