@@ -246,8 +246,10 @@ void ADeadlandsCharacter::ServerTryInteract_Implementation(AActor* RequestedTarg
 
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsServerInteraction), false, this);
-    // Trace toward the target's bounds center, ensuring intervening walls block use.
-    if (!GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TargetLocation, ECC_Visibility, Params) ||
+    // Check the nearest point on the target first: narrow doors can be missed
+    // when their center is obscured by the door frame or another building piece.
+    const FVector CheckPoint = ClosestPoint.Equals(EyeLocation, 1.f) ? TargetLocation : ClosestPoint;
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, CheckPoint, ECC_Visibility, Params) ||
         Hit.GetActor() != RequestedTarget)
     {
         UE_LOG(LogDeadlands, Verbose, TEXT("Interaction rejected: %s blocked or not visible"), *GetNameSafe(RequestedTarget));
