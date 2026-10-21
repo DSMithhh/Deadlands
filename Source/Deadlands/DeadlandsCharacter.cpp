@@ -700,6 +700,7 @@ void ADeadlandsCharacter::BeginPlay()
 void ADeadlandsCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if(bBuildMode&&IsLocallyControlled())RefreshBuildPreview();
     if (HasAuthority() && !bItemsLoaded) EnsureItemInventory();
     if (HasAuthority() && bItemsLoaded && !bIsDead && (Bleeding > 0.f || Infection > 0.f))
     {
