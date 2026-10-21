@@ -1061,11 +1061,10 @@ void ADeadlandsCharacter::RefreshBuildPreview()
  const FVector Scale=SelectedBuildType==1?FVector(2.2f,2.2f,.18f):
   SelectedBuildType==2?FVector(.18f,2.2f,2.3f):SelectedBuildType==3?FVector(.16f,1.05f,2.2f):
   SelectedBuildType==4?FVector(.95f,.7f,.7f):FVector(.18f,2.1f,1.45f);
- BuildPreview->SetWorldScale3D(Scale);
  FTransform Placement;
  const bool bValid=ComputeBuildTransform(SelectedBuildType,BuildRotationOffset,Placement);
  BuildPreview->SetVisibility(bValid);
- if(bValid)BuildPreview->SetWorldTransform(Placement);
+ if(bValid){BuildPreview->SetWorldTransform(Placement);BuildPreview->SetWorldScale3D(Scale);}
 }
 void ADeadlandsCharacter::ServerPlaceBarricade_Implementation(uint8 Type,float RotationOffset)
 {
