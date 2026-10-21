@@ -16,8 +16,11 @@ try:
         run_file("build_deadlands_town.py")
     # Safe to rerun: only adds missing atmosphere actors and tunes existing lighting.
     run_file("repair_deadlands_lighting.py")
+    # Build modular actors first: its load_level() reloads the map and can
+    # discard instance material overrides applied earlier in this startup.
+    run_file("build_deadlands_modular_props.py")
+    # Material assignment MUST be the final level-changing operation.
     run_file("apply_deadlands_materials.py")
     run_file("apply_deadlands_weathering.py")
-    run_file("build_deadlands_modular_props.py")
 except Exception:
     unreal.log_error("Deadlands Pack 16 startup failed:\n" + traceback.format_exc())
