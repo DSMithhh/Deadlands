@@ -35,6 +35,12 @@ private:
     UPROPERTY() TObjectPtr<UComboBoxString> ItemPicker;
     UPROPERTY() TObjectPtr<UButton> TakeButton;
     UPROPERTY() TObjectPtr<UButton> PutButton;
+    UPROPERTY() TObjectPtr<UButton> UseButton;
+    UPROPERTY() TObjectPtr<UButton> DropActionButton;
+    UPROPERTY() TObjectPtr<UTextBlock> StatusLabel;
+    UFUNCTION() void TakeAll();
+    FString StatusMessage;
+    float StatusUntil = 0.f;
     UPROPERTY() TObjectPtr<UUniformGridPanel> PlayerGrid;
     UPROPERTY() TObjectPtr<UUniformGridPanel> LootGrid;
     UPROPERTY() TObjectPtr<UTextBlock> ItemDetails;
