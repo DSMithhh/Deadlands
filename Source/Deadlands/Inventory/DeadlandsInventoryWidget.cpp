@@ -20,6 +20,7 @@ void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Charact
 {
     Survivor = Character;
     LootContainer = Container;
+    GridSignature.Empty();
     Refresh();
 }
 
@@ -178,7 +179,7 @@ void UDeadlandsInventoryWidget::Refresh()
         {
             for (const auto& Stack : Stacks)
             {
-                if (Index >= 16) break;
+                if (Index >= (Grid == PlayerGrid ? 8 : 16)) break;
                 UButton* Tile = WidgetTree->ConstructWidget<UButton>();
                 UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
                 Text->SetText(FText::FromString(FString::Printf(TEXT("%s\\nx%d"), *Stack.ItemId.ToString(), Stack.Quantity)));
@@ -219,27 +220,27 @@ void UDeadlandsInventoryWidget::Refresh()
         ItemDetails->SetText(FText::FromString(SelectedId.IsNone() ? Id :
             FString::Printf(TEXT("%s  |  %s  |  WEIGHT %d"), *Id, FDeadlandsItems::Rarity(SelectedId), FDeadlandsItems::Weight(SelectedId))));
     }
-    if (TakeButton) TakeButton->SetIsEnabled(IsValid(LootContainer));
-    if (PutButton) PutButton->SetIsEnabled(IsValid(LootContainer));
+    if (TakeButton) TakeButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone());
+    if (PutButton) PutButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone());
 }
 
 void UDeadlandsInventoryWidget::TakeOne()
 {
-    if (Survivor && LootContainer && ItemPicker)
-        Survivor->RequestItemTransfer(LootContainer, FName(*ItemPicker->GetSelectedOption()), true, 1);
+    if (Survivor && LootContainer && !SelectedId.IsNone())
+        Survivor->RequestItemTransfer(LootContainer, SelectedId, true, 1);
 }
 
 void UDeadlandsInventoryWidget::PutOne()
 {
-    if (Survivor && LootContainer && ItemPicker)
-        Survivor->RequestItemTransfer(LootContainer, FName(*ItemPicker->GetSelectedOption()), false, 1);
+    if (Survivor && LootContainer && !SelectedId.IsNone())
+        Survivor->RequestItemTransfer(LootContainer, SelectedId, false, 1);
 }
 
 void UDeadlandsInventoryWidget::TakeStack()
 {
-    if (Survivor && LootContainer && ItemPicker)
+    if (Survivor && LootContainer && !SelectedId.IsNone())
     {
-        const FName Id(*ItemPicker->GetSelectedOption());
+        const FName Id = SelectedId;
         Survivor->RequestItemTransfer(LootContainer, Id, true, FDeadlandsItems::MaxStack(Id));
     }
 }
@@ -276,13 +277,13 @@ FReply UDeadlandsInventoryWidget::NativeOnPreviewKeyDown(const FGeometry& Geomet
 
 void UDeadlandsInventoryWidget::ConsumeSelected()
 {
-    if (Survivor && ItemPicker)
-        Survivor->RequestConsumeItem(FName(*ItemPicker->GetSelectedOption()));
+    if (Survivor && !SelectedId.IsNone())
+        Survivor->RequestConsumeItem(SelectedId);
 }
 void UDeadlandsInventoryWidget::DropSelected()
 {
-    if (Survivor && ItemPicker)
-        Survivor->RequestDropItem(FName(*ItemPicker->GetSelectedOption()));
+    if (Survivor && !SelectedId.IsNone())
+        Survivor->RequestDropItem(SelectedId);
 }
 
 void UDeadlandsInventoryWidget::EquipBackpack() { if (Survivor) Survivor->RequestEquipBackpack(); }
