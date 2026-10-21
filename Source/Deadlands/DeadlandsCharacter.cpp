@@ -97,7 +97,7 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &ADeadlandsCharacter::RotateBuildLeft);
     PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ADeadlandsCharacter::RotateBuildRight);
     PlayerInputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &ADeadlandsCharacter::ConfirmBuild);
-    PlayerInputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ADeadlandsCharacter::CancelBuild);
+    // Escape is reserved by Unreal PIE; B toggles build mode and right click cancels.
     PlayerInputComponent->BindKey(EKeys::X, IE_Pressed, this, &ADeadlandsCharacter::DismantleBarricade);
     PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
@@ -530,11 +530,13 @@ void ADeadlandsCharacter::ApplyCombatDamage(float Amount)
 
 void ADeadlandsCharacter::TryMeleeAttack()
 {
+    if(bBuildMode){ConfirmBuild();return;}
     if (!IsLocallyControlled() || bIsDead || (InventoryWidget && InventoryWidget->IsInViewport())) return;
     ServerMeleeAttack();
 }
 void ADeadlandsCharacter::TryHeavyMeleeAttack()
 {
+    if(bBuildMode){CancelBuild();return;}
     if (!IsLocallyControlled() || bIsDead || (InventoryWidget && InventoryWidget->IsInViewport())) return;
     ServerHeavyMeleeAttack();
 }
@@ -1030,9 +1032,9 @@ bool ADeadlandsCharacter::ComputeBuildTransform(uint8 Type,float RotationOffset,
  FCollisionQueryParams SightParams(SCENE_QUERY_STAT(DeadlandsBuildSight),false,this);
  if(GetWorld()->LineTraceSingleByChannel(Sight,Eye,Ground.ImpactPoint+FVector(0.f,0.f,60.f),ECC_Visibility,SightParams))return false;
  const FRotator Rotation(0.f,GetBaseAimRotation().Yaw+RotationOffset,0.f);
- const float Height=Type==1?9.f:Type==2?115.f:Type==3?110.f:Type==4?35.f:75.f;
+ const float Height=Type==1?13.f:Type==2?115.f:Type==3?110.f:Type==4?35.f:75.f;
  const FVector Location=Ground.ImpactPoint+FVector(0.f,0.f,Height);
- const FVector Extent=Type==1?FVector(105.f,105.f,9.f):Type==2?FVector(9.f,105.f,110.f):
+ const FVector Extent=Type==1?FVector(103.f,103.f,7.f):Type==2?FVector(9.f,105.f,110.f):
   Type==3?FVector(8.f,52.f,105.f):Type==4?FVector(47.f,35.f,35.f):FVector(9.f,100.f,70.f);
  const FCollisionShape Shape=FCollisionShape::MakeBox(Extent);
  FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsBuildObstruction),false,this);
