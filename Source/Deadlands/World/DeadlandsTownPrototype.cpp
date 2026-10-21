@@ -204,4 +204,26 @@ void ADeadlandsTownPrototype::AddBuilding(const FString& Name, const FVector& Ce
         FVector(DoorWidth, Wall, 70.f));
     AddBlock(Name + TEXT("_Roof"), FVector(Center.X, Center.Y, Height + 16.f),
         FVector(Width + 70.f, Depth + 70.f, 32.f));
+    // Architectural trim sits on existing walls; door opening remains unobstructed.
+    const float DoorFrameX = DoorWidth * 0.5f + 8.f;
+    const float FrontSign = (FrontY > Center.Y) ? 1.f : -1.f;
+    for (int32 Side : {-1, 1})
+    {
+        AddBlock(Name + FString::Printf(TEXT("_DoorJamb_%d"), Side),
+            FVector(Center.X + Side * DoorFrameX, FrontY + FrontSign * 18.f, 112.f),
+            FVector(12, 14, 224));
+        // Window panels are decorative, not openings in the current greybox walls.
+        AddBlock(Name + FString::Printf(TEXT("_WindowPanel_%d"), Side),
+            FVector(Center.X + Side * Width * 0.32f, FrontY + FrontSign * 18.f, 190.f),
+            FVector(125, 12, 100));
+        AddBlock(Name + FString::Printf(TEXT("_WindowSill_%d"), Side),
+            FVector(Center.X + Side * Width * 0.32f, FrontY + FrontSign * 26.f, 135.f),
+            FVector(150, 26, 12));
+    }
+    if (bShop)
+    {
+        AddBlock(Name + TEXT("_StoreSign"),
+            FVector(Center.X, FrontY + FrontSign * 28.f, Height - 90.f),
+            FVector(Width * 0.42f, 18, 55));
+    }
 }
