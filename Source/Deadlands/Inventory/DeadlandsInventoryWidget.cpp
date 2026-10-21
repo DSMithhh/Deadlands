@@ -50,7 +50,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         Column->AddChildToVerticalBox(Label);
         return Label;
     };
-    Header = MakeText(TEXT("D E A D L A N D S     /     INVENTORY                     TAB / ESC  CLOSE"));
+    Header = MakeText(TEXT("D E A D L A N D S  /  INVENTORY    |    TAB / ESC CLOSE    |    E TRANSFER    |    CTRL+1-5 ASSIGN    |    1-5 USE"));
     Header->SetColorAndOpacity(FSlateColor(FLinearColor(0.86f, 0.72f, 0.43f)));
     PlayerList = MakeText(TEXT("SURVIVOR"));
     ContainerList = MakeText(TEXT("NEARBY LOOT"));
@@ -365,6 +365,24 @@ FReply UDeadlandsInventoryWidget::NativeOnPreviewKeyDown(const FGeometry& Geomet
         if (Survivor) Survivor->CloseInventory();
         return FReply::Handled();
     }
+    const FKey Key = Event.GetKey();
+    const int32 QuickIndex = Key == EKeys::One ? 0 : Key == EKeys::Two ? 1 : Key == EKeys::Three ? 2 : Key == EKeys::Four ? 3 : Key == EKeys::Five ? 4 : INDEX_NONE;
+    if (QuickIndex != INDEX_NONE)
+    {
+        if (Event.IsControlDown()) AssignQuickSlot(QuickIndex);
+        else UseQuickSlot(QuickIndex);
+        return FReply::Handled();
+    }
+    if (Key == EKeys::E && LootContainer && !SelectedId.IsNone())
+    {
+        if (bSelectedFromContainer) TakeStack(); else PutStack();
+        return FReply::Handled();
+    }
+    if (Key == EKeys::Delete && !bSelectedFromContainer && !SelectedId.IsNone())
+    {
+        DropSelected();
+        return FReply::Handled();
+    }
     return Super::NativeOnPreviewKeyDown(Geometry, Event);
 }
 
@@ -424,7 +442,11 @@ void UDeadlandsInventoryWidget::AssignQuickSlot(int32 Slot)
 void UDeadlandsInventoryWidget::UseQuickSlot(int32 Slot)
 {
     if (Survivor && QuickSlots.IsValidIndex(Slot) && !QuickSlots[Slot].IsNone())
-        Survivor->RequestConsumeItem(QuickSlots[Slot]);
+    {
+        const FName Id = QuickSlots[Slot];
+        if (Id == TEXT("Backpack")) Survivor->RequestEquipBackpack();
+        else if (Id == TEXT("Food") || Id == TEXT("Water") || Id == TEXT("Medicine") || Id == TEXT("Bandage") || Id == TEXT("Antibiotics")) Survivor->RequestConsumeItem(Id);
+    }
 }
 void UDeadlandsInventoryWidget::AssignQuickSlot1() { AssignQuickSlot(0); }
 void UDeadlandsInventoryWidget::UseQuickSlot1() { UseQuickSlot(0); }
