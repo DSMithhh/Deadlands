@@ -53,7 +53,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         Column->AddChildToVerticalBox(Label);
         return Label;
     };
-    Header = MakeText(TEXT("INVENTORY     /     TAB TO CLOSE"));
+    Header = MakeText(TEXT("DEADLANDS  /  INVENTORY     [TAB] CLOSE"));
     Header->SetColorAndOpacity(FSlateColor(FLinearColor(0.86f, 0.72f, 0.43f)));
     PlayerList = MakeText(TEXT("SURVIVOR"));
     ContainerList = MakeText(TEXT("NEARBY LOOT"));
@@ -195,6 +195,8 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     UHorizontalBox* QuickUse = WidgetTree->ConstructWidget<UHorizontalBox>();
     Column->AddChildToVerticalBox(QuickAssign);
     Column->AddChildToVerticalBox(QuickUse);
+    QuickAssign->SetVisibility(ESlateVisibility::Collapsed);
+    QuickUse->SetVisibility(ESlateVisibility::Collapsed);
     for (int32 I = 0; I < 5; ++I)
     {
         UButton* Assign = WidgetTree->ConstructWidget<UButton>();
