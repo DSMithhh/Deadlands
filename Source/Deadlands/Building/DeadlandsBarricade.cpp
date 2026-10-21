@@ -64,7 +64,7 @@ bool ADeadlandsBarricade::Dismantle(ADeadlandsCharacter* Character)
  Character->GetMutableItems()=MoveTemp(Updated);Character->NotifyItemsChanged();
  Destroy();return true;
 }
-float ADeadlandsBarricade::TakeDamage(float DamageAmount,const FDamageEvent& DamageEvent,AController* Instigator,AActor* Causer)
+float ADeadlandsBarricade::TakeDamage(float DamageAmount,const FDamageEvent& DamageEvent,AController* EventInstigator,AActor* Causer)
 {
  if(!HasAuthority()||DamageAmount<=0.f)return 0.f;
  const float Applied=FMath::Min(Health,DamageAmount);
@@ -81,9 +81,9 @@ float ADeadlandsBarricade::TakeDamage(float DamageAmount,const FDamageEvent& Dam
  }
  return Applied;
 }
-void ADeadlandsBarricade::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out) const
+void ADeadlandsBarricade::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
- Super::GetLifetimeReplicatedProps(Out);
+ Super::GetLifetimeReplicatedProps(OutLifetimeProps);
  DOREPLIFETIME(ADeadlandsBarricade,Health);
  DOREPLIFETIME(ADeadlandsBarricade,PersistentId);
 }
