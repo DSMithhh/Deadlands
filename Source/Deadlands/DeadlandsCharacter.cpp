@@ -793,7 +793,8 @@ void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContai
         (ItemId == TEXT("Medicine") && Health >= MaxHealth) ||
         (ItemId == TEXT("Bandage") && Bleeding <= 0.f) ||
         (ItemId == TEXT("Antibiotics") && Infection <= 0.f) ||
-        (ItemId == TEXT("Backpack") && bBackpackEquipped)) return;
+        (ItemId == TEXT("Backpack") && bBackpackEquipped) ||
+        ((ItemId == TEXT("Jacket") || ItemId == TEXT("Pants") || ItemId == TEXT("ArmorVest")) && IsGearEquipped(ItemId))) return;
     // Reuse the same server-side reach and obstruction checks as manual transfers.
     // No client-side consumption is trusted.
     const FVector Eye = GetPawnViewLocation();
