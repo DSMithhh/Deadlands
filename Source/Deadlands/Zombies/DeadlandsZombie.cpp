@@ -389,6 +389,9 @@ void ADeadlandsZombie::CreateCorpseLoot()
     Roll(TEXT("Antibiotics"), bRare ? .25f : .03f, 1);
     Roll(TEXT("Ammo9mm"), bFastVariant ? .3f : .12f, 5);
     Roll(TEXT("Tools"), bRare ? .22f : .08f, 1);
+    Roll(TEXT("Jacket"), bRare ? .28f : .11f, 1);
+    Roll(TEXT("Pants"), bRare ? .30f : .12f, 1);
+    Roll(TEXT("ArmorVest"), bRare ? .25f : .015f, 1);
     if (Rolled.IsEmpty()) Roll(TEXT("Scrap"), 1.f, 1);
     const FName DropId(*FString::Printf(TEXT("Corpse_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
     FActorSpawnParameters Params;
