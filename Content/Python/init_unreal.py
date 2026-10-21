@@ -19,6 +19,7 @@ try:
     # Build modular actors first: its load_level() reloads the map and can
     # discard instance material overrides applied earlier in this startup.
     run_file("build_deadlands_modular_props.py")
+    run_file("build_deadlands_asset_upgrade.py")
     # Material assignment MUST be the final level-changing operation.
     run_file("apply_deadlands_materials.py")
     run_file("apply_deadlands_weathering.py")
