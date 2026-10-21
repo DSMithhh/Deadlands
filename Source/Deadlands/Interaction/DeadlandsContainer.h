@@ -23,6 +23,8 @@ class DEADLANDS_API ADeadlandsContainer : public AActor, public IDeadlandsIntera
 
 public:
     ADeadlandsContainer();
+    /** Configure a runtime-spawned container before BeginPlay. */
+    void ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile);
     bool TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity);
     UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
