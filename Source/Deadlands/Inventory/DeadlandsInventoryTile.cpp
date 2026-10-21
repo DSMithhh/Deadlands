@@ -36,7 +36,7 @@ void UDeadlandsInventoryTile::ConfigureEquipment(UDeadlandsInventoryWidget* Owne
  SlotIndex=EquipmentSlot; ItemId=EquippedId; Count=EquippedId.IsNone()?0:1;
  const TCHAR* Label=EquipmentSlot==0?TEXT("BACK"):EquipmentSlot==1?TEXT("TORSO"):EquipmentSlot==2?TEXT("LEGS"):TEXT("ARMOR");
  const FString Display=EquippedId.IsNone()?TEXT("EMPTY"):EquippedId.ToString();
- if(TileText)TileText->SetText(FText::FromString(FString::Printf(TEXT("%s\\n%s"),Label,*Display)));
+ if(TileText)TileText->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"),Label,*Display)));
  SetToolTipText(FText::FromString(FString::Printf(TEXT("%s slot | %s | Drag compatible clothing here, or drag worn item into inventory"),Label,*Display)));
  UpdateAppearance();
 }
