@@ -6,6 +6,12 @@
 #include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsContainer.generated.h"
 
+UENUM(BlueprintType)
+enum class EDeadlandsLootProfile : uint8
+{
+    House, Store, Garage, Medical
+};
+
 class UStaticMeshComponent;
 class ADeadlandsCharacter;
 
@@ -40,6 +46,13 @@ protected:
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot", meta=(ClampMin="0"))
     int32 InitialSupplies = 5;
 
+    /** Pack 24: generate typed loot once when no inventory save exists. */
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot")
+    bool bGenerateLoot = true;
+
+    UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot")
+    EDeadlandsLootProfile LootProfile = EDeadlandsLootProfile::House;
+
     /** New item inventory, independent of legacy generic supplies. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot")
     TArray<FDeadlandsItemStack> InitialItems;
@@ -72,4 +85,5 @@ protected:
 private:
     FString GetPersistenceKey() const;
     void ApplyState();
+    TArray<FDeadlandsItemStack> GenerateInitialLoot() const;
 };
