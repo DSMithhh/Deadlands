@@ -63,6 +63,9 @@ protected:
 public:
     ADeadlandsCharacter();
 
+    /** Client entry point for inventory drag-and-drop reordering. */
+    void RequestReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
+
     /** Loads this player's item inventory on first use. Returns false if identity is not ready. */
     bool EnsureItemInventory();
     FString GetInventorySaveKey() const;
@@ -231,7 +234,6 @@ protected:
     UFUNCTION(Server, Reliable) void ServerDropItem(FName ItemId);
     void ShowInventory(ADeadlandsContainer* Container);
 
-    void RequestReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
     UFUNCTION(Server, Reliable) void ServerReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
     UFUNCTION(Server, Reliable)
     void ServerTransferItems(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
