@@ -35,6 +35,12 @@ void ADeadlandsContainer::BeginPlay()
                     FDeadlandsItems::AddOne(Sanitized, Stack.ItemId, 1000);
             }
             Items = MoveTemp(Sanitized);
+            if (Items.IsEmpty() && InitialItems.IsEmpty() && bGenerateLoot)
+            {
+                TArray<FDeadlandsItemStack> Rolled = GenerateInitialLoot();
+                if (FDeadlandsWorldPersistence::SaveInventory(this, TEXT("Container|") + GetPersistenceKey(), Rolled))
+                    Items = MoveTemp(Rolled);
+            }
         }
     }
     ApplyState();
@@ -153,4 +159,30 @@ bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Characte
             *ItemId.ToString(), Quantity);
     }
     return bAny;
+}
+
+TArray<FDeadlandsItemStack> ADeadlandsContainer::GenerateInitialLoot() const
+{
+    FRandomStream Random(GetTypeHash(GetPersistenceKey()));
+    TArray<FName> Pool;
+    switch (LootProfile)
+    {
+        case EDeadlandsLootProfile::Store:
+            Pool = {TEXT("Food"), TEXT("Food"), TEXT("Water"), TEXT("Water"), TEXT("Materials"), TEXT("Cloth"), TEXT("Backpack")};
+            break;
+        case EDeadlandsLootProfile::Garage:
+            Pool = {TEXT("Scrap"), TEXT("Scrap"), TEXT("Materials"), TEXT("Tools"), TEXT("Cloth"), TEXT("Ammo12g")};
+            break;
+        case EDeadlandsLootProfile::Medical:
+            Pool = {TEXT("Bandage"), TEXT("Bandage"), TEXT("Medicine"), TEXT("Antibiotics"), TEXT("Water")};
+            break;
+        default:
+            Pool = {TEXT("Food"), TEXT("Water"), TEXT("Cloth"), TEXT("Bandage"), TEXT("Medicine")};
+            break;
+    }
+    TArray<FDeadlandsItemStack> Result;
+    const int32 Rolls = Random.RandRange(2, 6);
+    for (int32 Index = 0; Index < Rolls; ++Index)
+        FDeadlandsItems::AddOne(Result, Pool[Random.RandRange(0, Pool.Num() - 1)], 1000);
+    return Result;
 }
