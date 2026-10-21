@@ -26,6 +26,7 @@ void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Charact
     SelectedId = NAME_None;
     bSelectedFromContainer = false;
     GridSignature.Empty();
+    EquipmentSignature.Empty();
     Refresh();
 }
 
@@ -69,8 +70,11 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     Column->AddChildToVerticalBox(InventoryPanels);
     UVerticalBox* PlayerPanel = WidgetTree->ConstructWidget<UVerticalBox>();
     UVerticalBox* LootPanel = WidgetTree->ConstructWidget<UVerticalBox>();
+    UVerticalBox* BodyPanel = WidgetTree->ConstructWidget<UVerticalBox>();
     UHorizontalBoxSlot* LeftSlot = InventoryPanels->AddChildToHorizontalBox(PlayerPanel);
+    UHorizontalBoxSlot* BodySlot = InventoryPanels->AddChildToHorizontalBox(BodyPanel);
     UHorizontalBoxSlot* RightSlot = InventoryPanels->AddChildToHorizontalBox(LootPanel);
+    BodySlot->SetPadding(FMargin(3.f, 10.f, 3.f, 10.f));
     LeftSlot->SetPadding(FMargin(0.f, 10.f, 12.f, 10.f));
     RightSlot->SetPadding(FMargin(12.f, 10.f, 0.f, 10.f));
     UTextBlock* LeftTitle = WidgetTree->ConstructWidget<UTextBlock>();
@@ -80,6 +84,16 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     LeftTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.75f, 0.85f, 0.92f)));
     RightTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.75f, 0.85f, 0.92f)));
     PlayerPanel->AddChildToVerticalBox(LeftTitle);
+    UTextBlock* BodyTitle = WidgetTree->ConstructWidget<UTextBlock>();
+    BodyTitle->SetText(FText::FromString(TEXT("EQUIPMENT")));
+    BodyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(.86f,.72f,.43f)));
+    BodyPanel->AddChildToVerticalBox(BodyTitle);
+    UTextBlock* HeadLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    HeadLabel->SetText(FText::FromString(TEXT("  [ HEAD ]")));
+    HeadLabel->SetJustification(ETextJustify::Center);
+    BodyPanel->AddChildToVerticalBox(HeadLabel);
+    EquipmentGrid = WidgetTree->ConstructWidget<UUniformGridPanel>();
+    BodyPanel->AddChildToVerticalBox(EquipmentGrid);
     LootPanel->AddChildToVerticalBox(RightTitle);
     USizeBox* PlayerFrame = WidgetTree->ConstructWidget<USizeBox>();
     USizeBox* LootFrame = WidgetTree->ConstructWidget<USizeBox>();
@@ -296,6 +310,31 @@ void UDeadlandsInventoryWidget::Refresh()
             Survivor->IsGearEquipped(TEXT("Jacket")) ? TEXT("ON") : TEXT("OFF"),
             Survivor->IsGearEquipped(TEXT("Pants")) ? TEXT("ON") : TEXT("OFF"),
             Survivor->IsGearEquipped(TEXT("ArmorVest")) ? TEXT("ON") : TEXT("OFF"))));
+    if (Survivor && EquipmentGrid)
+    {
+        const FName Slots[4] = {
+            Survivor->HasEquippedBackpack() ? FName(TEXT("Backpack")) : NAME_None,
+            Survivor->IsGearEquipped(TEXT("Jacket")) ? FName(TEXT("Jacket")) : NAME_None,
+            Survivor->IsGearEquipped(TEXT("Pants")) ? FName(TEXT("Pants")) : NAME_None,
+            Survivor->IsGearEquipped(TEXT("ArmorVest")) ? FName(TEXT("ArmorVest")) : NAME_None
+        };
+        FString NewSignature;
+        for (const FName Id : Slots) NewSignature += Id.ToString() + TEXT("|");
+        if (NewSignature != EquipmentSignature)
+        {
+            EquipmentSignature = NewSignature;
+            EquipmentGrid->ClearChildren();
+            for (int32 Index = 0; Index < 4; ++Index)
+            {
+                UDeadlandsInventoryTile* Tile = CreateWidget<UDeadlandsInventoryTile>(GetOwningPlayer(), UDeadlandsInventoryTile::StaticClass());
+                if (Tile)
+                {
+                    Tile->ConfigureEquipment(this, Index, Slots[Index]);
+                    EquipmentGrid->AddChildToUniformGrid(Tile, Index, 0);
+                }
+            }
+        }
+    }
     if (QuickbarLabel)
     {
         FString Text = TEXT("QUICK ACCESS");
@@ -585,4 +624,51 @@ void UDeadlandsInventoryWidget::TakeAll()
   if(FDeadlandsItems::Valid(Stack))
    Survivor->RequestItemTransfer(LootContainer,Stack.ItemId,true,FMath::Min(Stack.Quantity,30));
  StatusMessage=TEXT("TAKE ALL REQUESTED - LIMITED BY CAPACITY");
+}
+
+bool UDeadlandsInventoryWidget::IsEquipped(FName ItemId) const
+{
+ if(!Survivor)return false;
+ return ItemId==TEXT("Backpack")?Survivor->HasEquippedBackpack():Survivor->IsGearEquipped(ItemId);
+}
+bool UDeadlandsInventoryWidget::UnequipToInventory(FName ItemId)
+{
+ if(!Survivor||!IsEquipped(ItemId))return false;
+ if(ItemId==TEXT("Backpack"))Survivor->RequestEquipBackpack();
+ else Survivor->RequestToggleEquipment(ItemId);
+ StatusMessage=FString::Printf(TEXT("UNEQUIPPING %s"),*ItemId.ToString());
+ return true;
+}
+bool UDeadlandsInventoryWidget::DropOnEquipment(FName ItemId,bool bFromContainer,bool bFromEquipment,int32 EquipmentSlot)
+{
+ if(!Survivor||ItemId.IsNone()||bFromEquipment)return false;
+ const FName Expected=EquipmentSlot==0?FName(TEXT("Backpack")):
+  EquipmentSlot==1?FName(TEXT("Jacket")):
+  EquipmentSlot==2?FName(TEXT("Pants")):
+  EquipmentSlot==3?FName(TEXT("ArmorVest")):NAME_None;
+ if(ItemId!=Expected||IsEquipped(ItemId))
+ {
+  StatusMessage=TEXT("WRONG SLOT OR ALREADY EQUIPPED");
+  return false;
+ }
+ if(bFromContainer)
+ {
+  if(!IsValid(LootContainer))return false;
+  const TArray<FDeadlandsItemStack> Items=LootContainer->GetItems();
+  bool bFound=false;
+  for(const auto& Stack:Items)if(Stack.ItemId==ItemId&&Stack.Quantity>0){bFound=true;break;}
+  if(!bFound)return false;
+  Survivor->RequestUseContainerItem(LootContainer,ItemId);
+ }
+ else
+ {
+  const TArray<FDeadlandsItemStack> Items=Survivor->GetItems();
+  bool bFound=false;
+  for(const auto& Stack:Items)if(Stack.ItemId==ItemId&&Stack.Quantity>0){bFound=true;break;}
+  if(!bFound)return false;
+  if(ItemId==TEXT("Backpack"))Survivor->RequestEquipBackpack();
+  else Survivor->RequestToggleEquipment(ItemId);
+ }
+ StatusMessage=FString::Printf(TEXT("EQUIPPING %s"),*ItemId.ToString());
+ return true;
 }
