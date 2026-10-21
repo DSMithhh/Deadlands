@@ -6,6 +6,8 @@
 #include "Persistence/DeadlandsWorldPersistence.h"
 #include "Inventory/DeadlandsItemStack.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/DamageType.h"
+#include "Engine/DamageEvents.h"
 
 ADeadlandsBarricade::ADeadlandsBarricade()
 {
@@ -53,8 +55,12 @@ bool ADeadlandsBarricade::Dismantle(ADeadlandsCharacter* Character)
  if(!HasAuthority()||!IsValid(Character)||PersistentId.IsEmpty()||!Character->EnsureItemInventory())return false;
  TArray<FDeadlandsItemStack> Updated=Character->GetItems();
  if(!FDeadlandsItems::AddOne(Updated,TEXT("Materials"),Character->GetSupplyCapacity()))return false;
- if(!FDeadlandsWorldPersistence::RemoveBarricade(this,PersistentId))return false;
- FDeadlandsWorldPersistence::SaveInventory(Character,Character->GetInventorySaveKey(),Updated);
+ if(!FDeadlandsWorldPersistence::SaveInventory(Character,Character->GetInventorySaveKey(),Updated))return false;
+ if(!FDeadlandsWorldPersistence::RemoveBarricade(this,PersistentId))
+ {
+  FDeadlandsWorldPersistence::SaveInventory(Character,Character->GetInventorySaveKey(),Character->GetItems());
+  return false;
+ }
  Character->GetMutableItems()=MoveTemp(Updated);Character->NotifyItemsChanged();
  Destroy();return true;
 }
