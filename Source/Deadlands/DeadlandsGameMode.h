@@ -16,6 +16,7 @@ class ADeadlandsGameMode : public AGameModeBase
 
 public:
 	ADeadlandsGameMode();
+    virtual void BeginPlay() override;
 };
 
 
