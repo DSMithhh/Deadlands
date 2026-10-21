@@ -786,7 +786,8 @@ void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContai
 {
     if (bIsDead || !Vitals || !IsValid(Container) || !EnsureItemInventory()) return;
     if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine") &&
-        ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics") && ItemId != TEXT("Backpack")) return;
+        ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics") && ItemId != TEXT("Backpack") &&
+        ItemId != TEXT("Jacket") && ItemId != TEXT("Pants") && ItemId != TEXT("ArmorVest")) return;
     if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
         (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f) ||
         (ItemId == TEXT("Medicine") && Health >= MaxHealth) ||
@@ -813,6 +814,7 @@ void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContai
         (Hit.GetActor() != Container && Hit.GetActor() != MatchingCorpse)) return;
     if (!Container->TransferItemsToCharacter(this, ItemId, true, 1)) return;
     if (ItemId == TEXT("Backpack")) ServerEquipBackpack_Implementation();
+    else if (ItemId == TEXT("Jacket") || ItemId == TEXT("Pants") || ItemId == TEXT("ArmorVest")) ServerToggleEquipment_Implementation(ItemId);
     else ServerConsumeItem_Implementation(ItemId);
 }
 void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
