@@ -246,6 +246,10 @@ void ADeadlandsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME(ADeadlandsCharacter, bIsSprinting);
     DOREPLIFETIME(ADeadlandsCharacter, Health);
     DOREPLIFETIME(ADeadlandsCharacter, bIsDead);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, bBackpackEquipped, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Bleeding, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, Infection, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(ADeadlandsCharacter, ToolCondition, COND_OwnerOnly);
 }
 
 bool ADeadlandsCharacter::AddSupplies(int32 Amount)
@@ -297,6 +301,7 @@ bool ADeadlandsCharacter::EnsureItemInventory()
     const FString Key = GetInventorySaveKey();
     if (Key.IsEmpty()) return false;
     FDeadlandsWorldPersistence::LoadInventory(this, Key, Items);
+    FDeadlandsWorldPersistence::LoadSurvivalState(this, Key, bBackpackEquipped, Bleeding, Infection, ToolCondition);
     bItemsLoaded = true;
     NotifyItemsChanged();
     return true;
@@ -465,6 +470,11 @@ void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
     const bool bPlayerHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
     const bool bZombieHit = IsValid(Zombie) && Zombie->GetZombieHealth() > 0.f;
     if (bPlayerHit) Victim->ApplyCombatDamage(MeleeDamage);
+    if (bPlayerHit && Victim->EnsureItemInventory())
+    {
+        Victim->Bleeding = FMath::Min(100.f, Victim->Bleeding + 15.f);
+        FDeadlandsWorldPersistence::SaveSurvivalState(Victim, Victim->GetInventorySaveKey(), Victim->bBackpackEquipped, Victim->Bleeding, Victim->Infection, Victim->ToolCondition);
+    }
     if (bZombieHit) Zombie->ReceiveMeleeDamage(MeleeDamage);
     // Melee combat draws the attention of nearby unengaged infected.
     for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
@@ -570,6 +580,16 @@ void ADeadlandsCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     if (HasAuthority() && !bItemsLoaded) EnsureItemInventory();
+    if (HasAuthority() && bItemsLoaded && !bIsDead && (Bleeding > 0.f || Infection > 0.f))
+    {
+        ApplySurvivalDamage((Bleeding * 0.018f + Infection * 0.006f) * DeltaSeconds);
+        ConditionSaveClock += DeltaSeconds;
+        if (ConditionSaveClock >= 10.f)
+        {
+            ConditionSaveClock = 0.f;
+            FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
+        }
+    }
     // The first-person camera is attached to the head mesh rather than the capsule.
     // Move it locally so crouch is visible even before crouch animations exist.
     if (IsLocallyControlled() && FirstPersonCameraComponent && bCameraBaseCaptured)
@@ -695,4 +715,74 @@ void ADeadlandsCharacter::ServerDropItem_Implementation(FName ItemId)
     }
     Items = MoveTemp(NewItems);
     NotifyItemsChanged();
+}
+
+bool ADeadlandsCharacter::SaveSurvivalAndItems(const TArray<FDeadlandsItemStack>& NewItems, bool NewBackpack, float NewBleeding, float NewInfection, int32 NewCondition)
+{
+    if (!HasAuthority() || !EnsureItemInventory()) return false;
+    if (!FDeadlandsWorldPersistence::SaveInventoryAndSurvivalState(this, GetInventorySaveKey(), NewItems, NewBackpack, NewBleeding, NewInfection, NewCondition)) return false;
+    Items = NewItems;
+    bBackpackEquipped = NewBackpack;
+    Bleeding = NewBleeding;
+    Infection = NewInfection;
+    ToolCondition = NewCondition;
+    NotifyItemsChanged();
+    return true;
+}
+void ADeadlandsCharacter::RequestEquipBackpack()
+{
+    if (IsLocallyControlled()) ServerEquipBackpack();
+}
+void ADeadlandsCharacter::ServerEquipBackpack_Implementation()
+{
+    if (bIsDead || !EnsureItemInventory()) return;
+    TArray<FDeadlandsItemStack> Updated = Items;
+    if (!bBackpackEquipped)
+    {
+        if (!FDeadlandsItems::RemoveOne(Updated, TEXT("Backpack"))) return;
+        SaveSurvivalAndItems(Updated, true, Bleeding, Infection, ToolCondition);
+    }
+    else
+    {
+        if (!FDeadlandsItems::AddOne(Updated, TEXT("Backpack"), SupplyCapacity)) return;
+        if (FDeadlandsItems::TotalWeight(Updated) > SupplyCapacity) return;
+        SaveSurvivalAndItems(Updated, false, Bleeding, Infection, ToolCondition);
+    }
+}
+void ADeadlandsCharacter::RequestCraft(FName Recipe)
+{
+    if (IsLocallyControlled()) ServerCraft(Recipe);
+}
+void ADeadlandsCharacter::ServerCraft_Implementation(FName Recipe)
+{
+    if (bIsDead || !EnsureItemInventory()) return;
+    FName Output = NAME_None;
+    FName IngredientA = NAME_None, IngredientB = NAME_None;
+    int32 CountA = 0, CountB = 0;
+    if (Recipe == TEXT("Bandage")) { Output = TEXT("Bandage"); IngredientA = TEXT("Cloth"); CountA = 2; }
+    else if (Recipe == TEXT("Tools")) { Output = TEXT("Tools"); IngredientA = TEXT("Scrap"); CountA = 3; IngredientB = TEXT("Materials"); CountB = 2; }
+    else if (Recipe == TEXT("Medicine")) { Output = TEXT("Medicine"); IngredientA = TEXT("Bandage"); CountA = 2; IngredientB = TEXT("Antibiotics"); CountB = 1; }
+    else return;
+    TArray<FDeadlandsItemStack> Updated = Items;
+    for (int32 I = 0; I < CountA; ++I)
+        if (!FDeadlandsItems::RemoveOne(Updated, IngredientA)) return;
+    for (int32 I = 0; I < CountB; ++I)
+        if (!FDeadlandsItems::RemoveOne(Updated, IngredientB)) return;
+    if (!FDeadlandsItems::AddOne(Updated, Output, GetSupplyCapacity())) return;
+    SaveSurvivalAndItems(Updated, bBackpackEquipped, Bleeding, Infection, ToolCondition);
+}
+void ADeadlandsCharacter::RequestRepairTools()
+{
+    if (IsLocallyControlled()) ServerRepairTools();
+}
+void ADeadlandsCharacter::ServerRepairTools_Implementation()
+{
+    if (bIsDead || !EnsureItemInventory() || ToolCondition >= 100) return;
+    TArray<FDeadlandsItemStack> Updated = Items;
+    bool HasTools = false;
+    for (const auto& Stack : Items)
+        if (Stack.ItemId == TEXT("Tools") && Stack.Quantity > 0) HasTools = true;
+    if (!HasTools || !FDeadlandsItems::RemoveOne(Updated, TEXT("Scrap")) ||
+        !FDeadlandsItems::RemoveOne(Updated, TEXT("Materials"))) return;
+    SaveSurvivalAndItems(Updated, bBackpackEquipped, Bleeding, Infection, 100);
 }
