@@ -38,4 +38,9 @@ private:
     UFUNCTION() void PutStack();
     UFUNCTION() void ConsumeSelected();
     UFUNCTION() void DropSelected();
+    UFUNCTION() void EquipBackpack();
+    UFUNCTION() void CraftBandage();
+    UFUNCTION() void CraftTools();
+    UFUNCTION() void CraftMedicine();
+    UFUNCTION() void RepairTools();
 };
