@@ -305,3 +305,30 @@ bool FDeadlandsWorldPersistence::SaveSurvivalState(const UObject* Context, const
     if (!LoadInventory(Context, Key, Current)) return false;
     return SaveInventoryAndSurvivalState(Context, Key, Current, Backpack, Bleeding, Infection, Durability);
 }
+
+TMap<FString,FDeadlandsSavedBarricade> FDeadlandsWorldPersistence::LoadBarricades(const UObject* Context)
+{
+ if(!IsValid(Context)||!Context->GetWorld()||Context->GetWorld()->GetNetMode()==NM_Client)return {};
+ const auto* Save=Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Context),0));
+ return Save?Save->SavedBarricades:TMap<FString,FDeadlandsSavedBarricade>();
+}
+bool FDeadlandsWorldPersistence::SaveBarricade(const UObject* Context,const FString& Id,const FTransform& Transform,float Health)
+{
+ if(!IsValid(Context)||!Context->GetWorld()||Context->GetWorld()->GetNetMode()==NM_Client||Id.IsEmpty())return false;
+ const FString Slot=GetSlotName(Context);
+ auto* Save=Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot,0));
+ if(!Save)Save=Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+ if(!Save)return false;
+ FDeadlandsSavedBarricade& Entry=Save->SavedBarricades.FindOrAdd(Id);
+ Entry.Transform=Transform;Entry.Health=Health;
+ return UGameplayStatics::SaveGameToSlot(Save,Slot,0);
+}
+bool FDeadlandsWorldPersistence::RemoveBarricade(const UObject* Context,const FString& Id)
+{
+ if(!IsValid(Context)||!Context->GetWorld()||Context->GetWorld()->GetNetMode()==NM_Client||Id.IsEmpty())return false;
+ const FString Slot=GetSlotName(Context);
+ auto* Save=Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot,0));
+ if(!Save)return false;
+ Save->SavedBarricades.Remove(Id);
+ return UGameplayStatics::SaveGameToSlot(Save,Slot,0);
+}
