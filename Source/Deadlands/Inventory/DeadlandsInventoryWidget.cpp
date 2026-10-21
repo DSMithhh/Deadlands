@@ -447,20 +447,20 @@ void UDeadlandsInventoryWidget::SelectSlot13() { SelectIndex(13); }
 void UDeadlandsInventoryWidget::SelectSlot14() { SelectIndex(14); }
 void UDeadlandsInventoryWidget::SelectSlot15() { SelectIndex(15); }
 
-void UDeadlandsInventoryWidget::AssignQuickSlot(int32 Slot)
+void UDeadlandsInventoryWidget::AssignQuickSlot(int32 SlotIndex)
 {
     const bool bUsable = SelectedId == TEXT("Food") || SelectedId == TEXT("Water") ||
         SelectedId == TEXT("Medicine") || SelectedId == TEXT("Bandage") ||
         SelectedId == TEXT("Antibiotics") || SelectedId == TEXT("Backpack");
-    if (QuickSlots.IsValidIndex(Slot) && bUsable && !bSelectedFromContainer)
-        QuickSlots[Slot] = SelectedId;
+    if (QuickSlots.IsValidIndex(SlotIndex) && bUsable && !bSelectedFromContainer)
+        QuickSlots[SlotIndex] = SelectedId;
     Refresh();
 }
-void UDeadlandsInventoryWidget::UseQuickSlot(int32 Slot)
+void UDeadlandsInventoryWidget::UseQuickSlot(int32 SlotIndex)
 {
-    if (Survivor && QuickSlots.IsValidIndex(Slot) && !QuickSlots[Slot].IsNone())
+    if (Survivor && QuickSlots.IsValidIndex(SlotIndex) && !QuickSlots[SlotIndex].IsNone())
     {
-        const FName Id = QuickSlots[Slot];
+        const FName Id = QuickSlots[SlotIndex];
         if (Id == TEXT("Backpack")) Survivor->RequestEquipBackpack();
         else if (Id == TEXT("Food") || Id == TEXT("Water") || Id == TEXT("Medicine") || Id == TEXT("Bandage") || Id == TEXT("Antibiotics")) Survivor->RequestConsumeItem(Id);
     }
