@@ -26,9 +26,28 @@ ADeadlandsZombie::ADeadlandsZombie()
     PlaceholderBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PlaceholderBody"));
     PlaceholderBody->SetupAttachment(GetCapsuleComponent());
     PlaceholderBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    PlaceholderBody->SetRelativeScale3D(FVector(0.65f, 0.65f, 1.35f));
+    PlaceholderBody->SetRelativeScale3D(FVector(0.37f, 0.23f, 0.57f));
+    PlaceholderBody->SetRelativeLocation(FVector(0.f, 0.f, 14.f));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     if (Sphere.Succeeded()) PlaceholderBody->SetStaticMesh(Sphere.Object);
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    auto AddPart = [&](const TCHAR* Name, const FVector& Location, const FVector& Scale, bool bRound) -> UStaticMeshComponent*
+    {
+        UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+        Part->SetupAttachment(GetCapsuleComponent());
+        Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Part->SetRelativeLocation(Location);
+        Part->SetRelativeScale3D(Scale);
+        if (bRound && Sphere.Succeeded()) Part->SetStaticMesh(Sphere.Object);
+        else if (Cube.Succeeded()) Part->SetStaticMesh(Cube.Object);
+        return Part;
+    };
+    HeadVisual = AddPart(TEXT("ZombieHead"), FVector(13.f, 0.f, 63.f), FVector(.30f, .27f, .32f), true);
+    FaceVisual = AddPart(TEXT("ZombieFaceDirection"), FVector(39.f, 0.f, 64.f), FVector(.10f, .20f, .10f), false);
+    LeftArmVisual = AddPart(TEXT("ZombieLeftArm"), FVector(5.f, -30.f, 8.f), FVector(.18f, .17f, .68f), false);
+    RightArmVisual = AddPart(TEXT("ZombieRightArm"), FVector(5.f, 30.f, 8.f), FVector(.18f, .17f, .68f), false);
+    LeftLegVisual = AddPart(TEXT("ZombieLeftLeg"), FVector(0.f, -14.f, -49.f), FVector(.19f, .20f, .75f), false);
+    RightLegVisual = AddPart(TEXT("ZombieRightLeg"), FVector(0.f, 14.f, -49.f), FVector(.19f, .20f, .75f), false);
 }
 
 void ADeadlandsZombie::BeginPlay()
@@ -167,6 +186,7 @@ void ADeadlandsZombie::BroadcastAlert(const FVector& Location)
 void ADeadlandsZombie::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    UpdateZombieVisual(DeltaSeconds);
     if (!HasAuthority() || bDead || !GetWorld()) return;
     const float Now = GetWorld()->GetTimeSeconds();
     if (Now < StaggerEndTime)
@@ -324,9 +344,40 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
 void ADeadlandsZombie::ApplyDeathVisual()
 {
     // Keep the inert placeholder visible as a temporary corpse until cleanup.
-    if (bDead) SetActorTickEnabled(false);
+    // Continue ticking so the corpse can finish its collapse.
 }
 void ADeadlandsZombie::OnRep_Health() {}
+
+void ADeadlandsZombie::UpdateZombieVisual(float DeltaSeconds)
+{
+    if (!PlaceholderBody || !HeadVisual || !LeftArmVisual || !RightArmVisual || !LeftLegVisual || !RightLegVisual) return;
+    VisualTime += DeltaSeconds;
+    const float Speed = GetVelocity().Size2D();
+    const float Moving = bDead ? 0.f : FMath::Clamp(Speed / 150.f, 0.f, 1.f);
+    const float Frequency = ZombieState == EDeadlandsZombieState::Chasing ? 9.f : 5.f;
+    const float Swing = FMath::Sin(VisualTime * Frequency) * 30.f * Moving;
+    const bool bAttacking = !bDead && ZombieState == EDeadlandsZombieState::Attacking;
+    const float AttackPulse = FMath::Sin(VisualTime * 13.f);
+    LeftLegVisual->SetRelativeRotation(FRotator(Swing, 0.f, 0.f));
+    RightLegVisual->SetRelativeRotation(FRotator(-Swing, 0.f, 0.f));
+    LeftArmVisual->SetRelativeRotation(FRotator(bAttacking ? -65.f + AttackPulse * 22.f : -18.f - Swing * .6f, 0.f, -12.f));
+    RightArmVisual->SetRelativeRotation(FRotator(bAttacking ? -65.f - AttackPulse * 22.f : -18.f + Swing * .6f, 0.f, 12.f));
+    HeadVisual->SetRelativeRotation(FRotator(bAttacking ? -10.f : 5.f + FMath::Sin(VisualTime * 2.f) * 4.f, 0.f, 0.f));
+    PlaceholderBody->SetRelativeRotation(FRotator(0.f, 0.f, FMath::Sin(VisualTime * Frequency) * 3.f * Moving));
+    if (bDead)
+    {
+        DeathBlend = FMath::Min(1.f, DeathBlend + DeltaSeconds * 1.4f);
+        const float Fall = FMath::InterpEaseInOut(0.f, 1.f, DeathBlend, 2.f);
+        PlaceholderBody->SetRelativeRotation(FRotator(75.f * Fall, 0.f, 0.f));
+        PlaceholderBody->SetRelativeLocation(FVector(25.f * Fall, 0.f, 14.f - 36.f * Fall));
+        HeadVisual->SetRelativeLocation(FVector(13.f + 60.f * Fall, 0.f, 63.f - 95.f * Fall));
+        FaceVisual->SetRelativeLocation(FVector(39.f + 55.f * Fall, 0.f, 64.f - 95.f * Fall));
+        LeftArmVisual->SetRelativeRotation(FRotator(-18.f, 0.f, -75.f * Fall));
+        RightArmVisual->SetRelativeRotation(FRotator(-18.f, 0.f, 75.f * Fall));
+        LeftLegVisual->SetRelativeRotation(FRotator(55.f * Fall, 0.f, 0.f));
+        RightLegVisual->SetRelativeRotation(FRotator(-25.f * Fall, 0.f, 0.f));
+    }
+}
 void ADeadlandsZombie::OnRep_Dead()
 {
     if (bDead)
