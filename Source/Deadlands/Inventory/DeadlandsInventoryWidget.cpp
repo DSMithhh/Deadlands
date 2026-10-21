@@ -119,12 +119,14 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     TakeFiveButton->AddChild(TakeFiveLabel);
     Buttons->AddChildToHorizontalBox(TakeFiveButton);
     TakeFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeFive);
+    TakeFiveButton->SetVisibility(ESlateVisibility::Collapsed);
     UButton* PutFiveButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* PutFiveLabel = WidgetTree->ConstructWidget<UTextBlock>();
     PutFiveLabel->SetText(FText::FromString(TEXT(" PUT 5 ")));
     PutFiveButton->AddChild(PutFiveLabel);
     Buttons->AddChildToHorizontalBox(PutFiveButton);
     PutFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutFive);
+    PutFiveButton->SetVisibility(ESlateVisibility::Collapsed);
     PutButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutOne);
     UButton* TakeStackButton = WidgetTree->ConstructWidget<UButton>();
     UButton* PutStackButton = WidgetTree->ConstructWidget<UButton>();
@@ -137,7 +139,9 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PutStackLabel->SetText(FText::FromString(TEXT(" PUT STACK ")));
     PutStackButton->AddChild(PutStackLabel);
     TakeStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeStack);
+    TakeStackButton->SetVisibility(ESlateVisibility::Collapsed);
     PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
+    PutStackButton->SetVisibility(ESlateVisibility::Collapsed);
     UButton* ConsumeButton = WidgetTree->ConstructWidget<UButton>();
     UseButton = ConsumeButton;
     UTextBlock* ConsumeLabel = WidgetTree->ConstructWidget<UTextBlock>();
@@ -298,8 +302,10 @@ void UDeadlandsInventoryWidget::Refresh()
                 FDeadlandsItems::Weight(SelectedId), bSelectedFromContainer ? TEXT("CONTAINER") : TEXT("BACKPACK"), Hint)));
         }
     }
-    if (TakeButton) TakeButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && bSelectedFromContainer);
-    if (PutButton) PutButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && !bSelectedFromContainer);
+    if (TakeButton) { TakeButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && bSelectedFromContainer);
+        TakeButton->SetVisibility(IsValid(LootContainer) && bSelectedFromContainer && !SelectedId.IsNone() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed); }
+    if (PutButton) { PutButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && !bSelectedFromContainer);
+        PutButton->SetVisibility(IsValid(LootContainer) && !bSelectedFromContainer && !SelectedId.IsNone() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed); }
     if (UseButton) UseButton->SetVisibility(SelectedId == TEXT("Food") || SelectedId == TEXT("Water") ||
         SelectedId == TEXT("Medicine") || SelectedId == TEXT("Bandage") || SelectedId == TEXT("Antibiotics") ||
         SelectedId == TEXT("Backpack") ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
