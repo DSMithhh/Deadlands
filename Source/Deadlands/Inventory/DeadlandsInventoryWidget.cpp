@@ -1,4 +1,5 @@
 #include "Inventory/DeadlandsInventoryWidget.h"
+#include "Inventory/DeadlandsInventoryTile.h"
 #include "DeadlandsCharacter.h"
 #include "Interaction/DeadlandsContainer.h"
 #include "Blueprint/WidgetTree.h"
@@ -138,17 +139,26 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     TakeStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeStack);
     PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
     UButton* ConsumeButton = WidgetTree->ConstructWidget<UButton>();
+    UseButton = ConsumeButton;
     UTextBlock* ConsumeLabel = WidgetTree->ConstructWidget<UTextBlock>();
     ConsumeLabel->SetText(FText::FromString(TEXT(" USE ")));
     ConsumeButton->AddChild(ConsumeLabel);
     Buttons->AddChildToHorizontalBox(ConsumeButton);
     ConsumeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ConsumeSelected);
     UButton* DropButton = WidgetTree->ConstructWidget<UButton>();
+    DropActionButton = DropButton;
     UTextBlock* DropLabel = WidgetTree->ConstructWidget<UTextBlock>();
     DropLabel->SetText(FText::FromString(TEXT(" DROP ")));
     DropButton->AddChild(DropLabel);
     Buttons->AddChildToHorizontalBox(DropButton);
     DropButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::DropSelected);
+    UButton* TakeAllButton = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* TakeAllLabel = WidgetTree->ConstructWidget<UTextBlock>();
+    TakeAllLabel->SetText(FText::FromString(TEXT(" TAKE ALL ")));
+    TakeAllButton->AddChild(TakeAllLabel);
+    Buttons->AddChildToHorizontalBox(TakeAllButton);
+    TakeAllButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeAll);
+    StatusLabel = MakeText(TEXT("DRAG TO MOVE  |  SHIFT+DRAG STACK  |  DOUBLE-CLICK TRANSFER"));
     UButton* CraftToggle = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* CraftToggleText = WidgetTree->ConstructWidget<UTextBlock>();
     CraftToggleText->SetText(FText::FromString(TEXT(" CRAFTING / REPAIR  [EXPAND] ")));
@@ -240,107 +250,20 @@ void UDeadlandsInventoryWidget::Refresh()
         GridSignature = Signature;
         PlayerGrid->ClearChildren();
         LootGrid->ClearChildren();
-        int32 Index = 0;
-        auto BuildGrid = [&](UUniformGridPanel* Grid, const TArray<FDeadlandsItemStack>& Stacks)
+        auto BuildGrid = [&](UUniformGridPanel* Grid, const TArray<FDeadlandsItemStack>& Stacks, bool bContainer)
         {
-            for (const auto& Stack : Stacks)
+            for (int32 Index = 0; Index < 16; ++Index)
             {
-                if (Index >= (Grid == PlayerGrid ? 16 : 32)) break;
-                UButton* Tile = WidgetTree->ConstructWidget<UButton>();
-                USizeBox* TileSize = WidgetTree->ConstructWidget<USizeBox>();
-                TileSize->SetWidthOverride(108.f);
-                TileSize->SetHeightOverride(96.f);
-                UVerticalBox* TileContent = WidgetTree->ConstructWidget<UVerticalBox>();
-                const FString ItemName = Stack.ItemId.ToString();
-                FString Symbol = TEXT("[]");
-                if (Stack.ItemId == TEXT("Food")) Symbol = TEXT("[F]");
-                else if (Stack.ItemId == TEXT("Water")) Symbol = TEXT("[W]");
-                else if (Stack.ItemId == TEXT("Medicine")) Symbol = TEXT("[+]");
-                else if (Stack.ItemId == TEXT("Bandage")) Symbol = TEXT("[B]");
-                else if (Stack.ItemId == TEXT("Antibiotics")) Symbol = TEXT("[Rx]");
-                else if (Stack.ItemId == TEXT("Pistol")) Symbol = TEXT("[P]");
-                else if (Stack.ItemId == TEXT("Backpack")) Symbol = TEXT("[BP]");
-                else if (Stack.ItemId == TEXT("Tools")) Symbol = TEXT("[T]");
-                else if (Stack.ItemId == TEXT("Scrap")) Symbol = TEXT("[S]");
-                else if (Stack.ItemId == TEXT("Cloth")) Symbol = TEXT("[C]");
-                else if (Stack.ItemId == TEXT("Materials")) Symbol = TEXT("[M]");
-                else if (Stack.ItemId == TEXT("Ammo9mm")) Symbol = TEXT("[9]");
-                else if (Stack.ItemId == TEXT("Ammo12g")) Symbol = TEXT("[12]");
-                UTextBlock* IconText = WidgetTree->ConstructWidget<UTextBlock>();
-                IconText->SetText(FText::FromString(Symbol));
-                IconText->SetJustification(ETextJustify::Center);
-                IconText->SetColorAndOpacity(FSlateColor(FLinearColor(0.74f, 0.85f, 0.96f)));
-                FSlateFontInfo IconFont = IconText->GetFont();
-                IconFont.Size = 22;
-                IconText->SetFont(IconFont);
-                TileContent->AddChildToVerticalBox(IconText);
-                UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>();
-                NameText->SetText(FText::FromString(ItemName));
-                NameText->SetJustification(ETextJustify::Center);
-                FSlateFontInfo NameFont = NameText->GetFont();
-                NameFont.Size = 12;
-                NameText->SetFont(NameFont);
-                NameText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-                TileContent->AddChildToVerticalBox(NameText);
-                UTextBlock* CountText = WidgetTree->ConstructWidget<UTextBlock>();
-                CountText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), Stack.Quantity)));
-                CountText->SetJustification(ETextJustify::Center);
-                CountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.81f, 0.87f)));
-                TileContent->AddChildToVerticalBox(CountText);
-                UBorder* TileBackground = WidgetTree->ConstructWidget<UBorder>();
-                TileBackground->SetPadding(FMargin(8.f));
-                TileBackground->SetContent(TileContent);
-                TileSize->SetContent(TileBackground);
-                Tile->AddChild(TileSize);
-                const bool bThisContainer = Grid == LootGrid;
-                const bool bSelected = Stack.ItemId == SelectedId && bThisContainer == bSelectedFromContainer;
-                const FString Rarity = FDeadlandsItems::Rarity(Stack.ItemId);
-                const FLinearColor Base = Rarity == TEXT("RARE") ? FLinearColor(0.29f, 0.21f, 0.39f) : Rarity == TEXT("UNCOMMON") ? FLinearColor(0.17f, 0.31f, 0.29f) : FLinearColor(0.16f, 0.22f, 0.27f);
-                Tile->SetBackgroundColor(bSelected ? FLinearColor(0.43f, 0.53f, 0.60f) : Base);
-                Tile->SetToolTipText(FText::FromString(FString::Printf(TEXT("%s | %s | %d weight each | x%d"), *Stack.ItemId.ToString(), FDeadlandsItems::Rarity(Stack.ItemId), FDeadlandsItems::Weight(Stack.ItemId), Stack.Quantity)));
-                Grid->AddChildToUniformGrid(Tile, (Index % 16) / 3, Index % 3);
-                switch (Index)
-                {
-                    case 0: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot0); break;
-                    case 1: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot1); break;
-                    case 2: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot2); break;
-                    case 3: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot3); break;
-                    case 4: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot4); break;
-                    case 5: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot5); break;
-                    case 6: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot6); break;
-                    case 7: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot7); break;
-                    case 8: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot8); break;
-                    case 9: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot9); break;
-                    case 10: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot10); break;
-                    case 11: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot11); break;
-                    case 12: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot12); break;
-                    case 13: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot13); break;
-                    case 14: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot14); break;
-                    case 15: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot15); break;
-                    case 16: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot16); break;
-                    case 17: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot17); break;
-                    case 18: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot18); break;
-                    case 19: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot19); break;
-                    case 20: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot20); break;
-                    case 21: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot21); break;
-                    case 22: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot22); break;
-                    case 23: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot23); break;
-                    case 24: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot24); break;
-                    case 25: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot25); break;
-                    case 26: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot26); break;
-                    case 27: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot27); break;
-                    case 28: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot28); break;
-                    case 29: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot29); break;
-                    case 30: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot30); break;
-                    case 31: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot31); break;
-                }
-                ++Index;
+                const FDeadlandsItemStack Stack = Stacks.IsValidIndex(Index) ? Stacks[Index] : FDeadlandsItemStack();
+                UDeadlandsInventoryTile* Tile = CreateWidget<UDeadlandsInventoryTile>(GetOwningPlayer(), UDeadlandsInventoryTile::StaticClass());
+                if (!Tile) continue;
+                Tile->Configure(this, bContainer, Index, Stack.ItemId, Stack.Quantity);
+                Tile->SetSelected(!Stack.ItemId.IsNone() && Stack.ItemId == SelectedId && bContainer == bSelectedFromContainer);
+                Grid->AddChildToUniformGrid(Tile, Index / 3, Index % 3);
             }
-            Index = 16;
         };
-        if (Survivor) BuildGrid(PlayerGrid, Survivor->GetItems());
-        Index = 16;
-        if (LootContainer) BuildGrid(LootGrid, LootContainer->GetItems());
+        if (Survivor) BuildGrid(PlayerGrid, Survivor->GetItems(), false);
+        if (LootContainer) BuildGrid(LootGrid, LootContainer->GetItems(), true);
     }
     if (QuickbarLabel)
     {
@@ -377,6 +300,13 @@ void UDeadlandsInventoryWidget::Refresh()
     }
     if (TakeButton) TakeButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && bSelectedFromContainer);
     if (PutButton) PutButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && !bSelectedFromContainer);
+    if (UseButton) UseButton->SetVisibility(SelectedId == TEXT("Food") || SelectedId == TEXT("Water") ||
+        SelectedId == TEXT("Medicine") || SelectedId == TEXT("Bandage") || SelectedId == TEXT("Antibiotics") ||
+        SelectedId == TEXT("Backpack") ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    if (DropActionButton) DropActionButton->SetVisibility(!SelectedId.IsNone() && !bSelectedFromContainer ?
+        ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+    if (StatusLabel) StatusLabel->SetText(FText::FromString(StatusMessage.IsEmpty() ?
+        TEXT("DRAG: MOVE ONE  |  SHIFT+DRAG: STACK  |  DOUBLE-CLICK: TRANSFER") : StatusMessage));
 }
 
 void UDeadlandsInventoryWidget::TakeOne()
