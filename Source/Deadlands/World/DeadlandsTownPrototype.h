@@ -14,6 +14,7 @@ class DEADLANDS_API ADeadlandsTownPrototype : public AActor
     GENERATED_BODY()
 public:
     ADeadlandsTownPrototype();
+    virtual void BeginPlay() override;
 private:
     UPROPERTY(VisibleAnywhere)
     TObjectPtr<USceneComponent> SceneRoot;
