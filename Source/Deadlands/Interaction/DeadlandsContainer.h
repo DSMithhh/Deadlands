@@ -25,6 +25,9 @@ public:
     ADeadlandsContainer();
     /** Configure a runtime-spawned container before BeginPlay. */
     void ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile);
+    void ConfigureBuiltStorage(FName StableId);
+    bool IsBuiltStorage() const { return bBuiltStorage; }
+    FString GetBuiltStorageId() const { return bBuiltStorage ? PersistenceId.ToString() : FString(); }
     void ConfigureCorpseLoot(FName StableId, const TArray<FDeadlandsItemStack>& Loot, bool bAsBag);
     void RevealCorpseBag();
     bool IsCorpseBag() const { return bCorpseBag; }
@@ -48,6 +51,7 @@ protected:
 
     UPROPERTY(ReplicatedUsing=OnRep_Open, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Container")
     bool bOpen = false;
+    UPROPERTY(Replicated) bool bBuiltStorage = false;
 
     /** Supplies assigned once when no save exists for this container. */
     UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Deadlands|Loot", meta=(ClampMin="0"))

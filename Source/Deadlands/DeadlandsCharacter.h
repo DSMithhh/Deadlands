@@ -66,6 +66,16 @@ public:
     /** Client entry point for inventory drag-and-drop reordering. */
     void RequestReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
     void PlaceBarricade();
+    void SelectBuildBarricade();
+    void SelectBuildFoundation();
+    void SelectBuildWall();
+    void SelectBuildDoor();
+    void SelectBuildStorage();
+    void RotateBuildLeft();
+    void RotateBuildRight();
+    void ConfirmBuild();
+    void CancelBuild();
+    bool ComputeBuildTransform(uint8 Type,float RotationOffset,FTransform& OutTransform) const;
     void DismantleBarricade();
 
     /** Loads this player's item inventory on first use. Returns false if identity is not ready. */
@@ -232,7 +242,12 @@ protected:
     TObjectPtr<ADeadlandsContainer> CurrentContainer;
 
     void ToggleInventory();
-    UFUNCTION(Server,Reliable) void ServerPlaceBarricade();
+    UFUNCTION(Server,Reliable) void ServerPlaceBarricade(uint8 Type,float RotationOffset);
+    bool bBuildMode=false;
+    uint8 SelectedBuildType=0;
+    float BuildRotationOffset=0.f;
+    UPROPERTY(Transient) TObjectPtr<class UStaticMeshComponent> BuildPreview;
+    void RefreshBuildPreview();
     UFUNCTION(Server,Reliable) void ServerDismantleBarricade();
     void ToggleCrouch();
     UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);

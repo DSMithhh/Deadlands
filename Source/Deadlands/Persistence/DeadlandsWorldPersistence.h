@@ -9,7 +9,7 @@ class DEADLANDS_API FDeadlandsWorldPersistence
 {
 public:
     static TMap<FString,FDeadlandsSavedBarricade> LoadBarricades(const UObject* Context);
-    static bool SaveBarricade(const UObject* Context,const FString& Id,const FTransform& Transform,float Health);
+    static bool SaveBarricade(const UObject* Context,const FString& Id,const FTransform& Transform,float Health,uint8 PieceType=0,bool bDoorOpen=false);
     static bool RemoveBarricade(const UObject* Context,const FString& Id);
     static bool LoadSurvivalState(const UObject* Context, const FString& Key, bool& Backpack, float& Bleeding, float& Infection, int32& Durability);
     static bool SaveSurvivalState(const UObject* Context, const FString& Key, bool Backpack, float Bleeding, float Infection, int32 Durability);
