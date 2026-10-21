@@ -78,6 +78,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Deadlands|Inventory")
     void RequestItemTransfer(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
+    void RequestUseContainerItem(ADeadlandsContainer* Container, FName ItemId);
 
     UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestEquipBackpack();
     UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestCraft(FName Recipe);
@@ -223,6 +224,7 @@ protected:
     void ToggleInventory();
     void ToggleCrouch();
     UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);
+    UFUNCTION(Server, Reliable) void ServerUseContainerItem(ADeadlandsContainer* Container, FName ItemId);
     UFUNCTION(Server, Reliable) void ServerEquipBackpack();
     UFUNCTION(Server, Reliable) void ServerCraft(FName Recipe);
     UFUNCTION(Server, Reliable) void ServerRepairTools();
