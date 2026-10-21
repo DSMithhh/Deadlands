@@ -9,6 +9,7 @@ class UTextBlock;
 class UComboBoxString;
 class UButton;
 class UUniformGridPanel;
+class UHorizontalBox;
 
 /** Minimal runtime-created inventory UI. No Blueprint widget asset required. */
 UCLASS()
@@ -38,6 +39,8 @@ private:
     bool bSelectedFromContainer = false;
     UPROPERTY() TObjectPtr<UTextBlock> QuickbarLabel;
     TArray<FName> QuickSlots;
+    UPROPERTY() TObjectPtr<UHorizontalBox> CraftActions;
+    UFUNCTION() void ToggleCraftActions();
     FString GridSignature;
     float RefreshCountdown = 0.f;
     void SelectIndex(int32 Index);
