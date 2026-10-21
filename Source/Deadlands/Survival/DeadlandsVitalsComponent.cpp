@@ -16,6 +16,13 @@ void UDeadlandsVitalsComponent::SetSprinting(bool bNewSprinting)
 {
     if (GetOwner() && GetOwner()->HasAuthority()) bSprinting = bNewSprinting;
 }
+bool UDeadlandsVitalsComponent::SpendStamina(float Cost)
+{
+    if (!GetOwner() || !GetOwner()->HasAuthority() || Cost < 0.f || Stamina < Cost) return false;
+    Stamina -= Cost;
+    GetOwner()->ForceNetUpdate();
+    return true;
+}
 bool UDeadlandsVitalsComponent::Consume(FName ItemId)
 {
     if (!GetOwner() || !GetOwner()->HasAuthority()) return false;
