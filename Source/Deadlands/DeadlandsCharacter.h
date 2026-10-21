@@ -231,6 +231,8 @@ protected:
     UFUNCTION(Server, Reliable) void ServerDropItem(FName ItemId);
     void ShowInventory(ADeadlandsContainer* Container);
 
+    void RequestReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
+    UFUNCTION(Server, Reliable) void ServerReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
     UFUNCTION(Server, Reliable)
     void ServerTransferItems(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity);
 
