@@ -995,11 +995,15 @@ void ADeadlandsCharacter::ServerPlaceBarricade_Implementation()
  const FVector Direction=GetBaseAimRotation().Vector();
  FHitResult Hit;
  FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsBuildPlacement),false,this);
- if(!GetWorld()->LineTraceSingleByChannel(Hit,Eye,Eye+Direction*450.f,ECC_Visibility,Params))return;
- if(!Hit.bBlockingHit||Hit.GetActor()==this)return;
- const FVector GroundLocation=Hit.ImpactPoint+Hit.ImpactNormal*16.f;
+ // Building requires an unobstructed view of the intended ground placement area.
+ // Place on ground in front of the player, not inside the surface being aimed at.
+ const FVector Candidate=GetActorLocation()+FVector(Direction.X,Direction.Y,0.f).GetSafeNormal()*210.f;
+ FHitResult Ground;
+ FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(DeadlandsBuildGround),false,this);
+ if(!GetWorld()->LineTraceSingleByChannel(Ground,Candidate+FVector(0.f,0.f,150.f),Candidate-FVector(0.f,0.f,240.f),ECC_Visibility,GroundParams))return;
+ if(Ground.ImpactNormal.Z<0.65f)return;
  const FRotator Rotation(0.f,GetBaseAimRotation().Yaw+90.f,0.f);
- const FVector Location=GroundLocation+FVector(0.f,0.f,75.f);
+ const FVector Location=Ground.ImpactPoint+FVector(0.f,0.f,75.f);
  const FCollisionShape Shape=FCollisionShape::MakeBox(FVector(14.f,110.f,76.f));
  FCollisionQueryParams BlockParams(SCENE_QUERY_STAT(DeadlandsBuildObstruction),false,this);
  if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldStatic,Shape,BlockParams))return;
