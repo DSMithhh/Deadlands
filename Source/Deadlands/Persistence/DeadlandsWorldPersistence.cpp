@@ -219,3 +219,39 @@ bool FDeadlandsWorldPersistence::TransferItem(const UObject* Context, const FStr
     Destination = MoveTemp(NewDestination);
     return true;
 }
+
+bool FDeadlandsWorldPersistence::LoadSurvivalState(const UObject* Context, const FString& Key, bool& Backpack, float& Bleeding, float& Infection, int32& Durability)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Context), 0));
+    if (!Save) return false;
+    if (const bool* Value = Save->EquippedBackpacks.Find(Key)) Backpack = *Value;
+    if (const float* Value = Save->BleedingLevels.Find(Key)) Bleeding = *Value;
+    if (const float* Value = Save->InfectionLevels.Find(Key)) Infection = *Value;
+    if (const int32* Value = Save->ToolDurability.Find(Key)) Durability = *Value;
+    return Save->EquippedBackpacks.Contains(Key);
+}
+
+bool FDeadlandsWorldPersistence::SaveInventoryAndSurvivalState(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items, bool Backpack, float Bleeding, float Infection, int32 Durability)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    if (!Save) return false;
+    FDeadlandsItemInventory Record;
+    Record.Stacks = Items;
+    Save->SavedInventories.Add(Key, MoveTemp(Record));
+    Save->EquippedBackpacks.Add(Key, Backpack);
+    Save->BleedingLevels.Add(Key, FMath::Clamp(Bleeding, 0.f, 100.f));
+    Save->InfectionLevels.Add(Key, FMath::Clamp(Infection, 0.f, 100.f));
+    Save->ToolDurability.Add(Key, FMath::Clamp(Durability, 0, 100));
+    return UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+}
+
+bool FDeadlandsWorldPersistence::SaveSurvivalState(const UObject* Context, const FString& Key, bool Backpack, float Bleeding, float Infection, int32 Durability)
+{
+    TArray<FDeadlandsItemStack> Current;
+    if (!LoadInventory(Context, Key, Current)) return false;
+    return SaveInventoryAndSurvivalState(Context, Key, Current, Backpack, Bleeding, Infection, Durability);
+}
