@@ -365,6 +365,38 @@ void ADeadlandsCharacter::RequestItemTransfer(ADeadlandsContainer* Container, FN
     ServerTransferItems(Container, ItemId, bTake, Quantity);
 }
 
+void ADeadlandsCharacter::RequestReorderItem(bool bContainer,ADeadlandsContainer* Container,int32 SourceIndex,int32 TargetIndex)
+{
+ if(IsLocallyControlled())ServerReorderItem(bContainer,Container,SourceIndex,TargetIndex);
+}
+void ADeadlandsCharacter::ServerReorderItem_Implementation(bool bContainer,ADeadlandsContainer* Container,int32 SourceIndex,int32 TargetIndex)
+{
+ if(bIsDead||SourceIndex<0||TargetIndex<0||TargetIndex>=16||SourceIndex==TargetIndex)return;
+ if(bContainer)
+ {
+  if(!IsValid(Container)||FVector::DistSquared(GetActorLocation(),Container->GetActorLocation())>FMath::Square(300.f))return;
+  Container->ReorderSlots(SourceIndex,TargetIndex);
+  return;
+ }
+ if(!EnsureItemInventory()||!Items.IsValidIndex(SourceIndex)||!FDeadlandsItems::Valid(Items[SourceIndex]))return;
+ TArray<FDeadlandsItemStack> Updated=Items;
+ Updated.SetNum(FMath::Max(Updated.Num(),TargetIndex+1));
+ if(Updated[TargetIndex].ItemId==Updated[SourceIndex].ItemId)
+ {
+  const int32 Space=FDeadlandsItems::MaxStack(Updated[TargetIndex].ItemId)-Updated[TargetIndex].Quantity;
+  if(Space>0)
+  {
+   const int32 Count=FMath::Min(Space,Updated[SourceIndex].Quantity);
+   Updated[TargetIndex].Quantity+=Count;Updated[SourceIndex].Quantity-=Count;
+   if(Updated[SourceIndex].Quantity==0)Updated[SourceIndex].ItemId=NAME_None;
+  }
+  else Swap(Updated[SourceIndex],Updated[TargetIndex]);
+ }
+ else Swap(Updated[SourceIndex],Updated[TargetIndex]);
+ while(!Updated.IsEmpty()&&Updated.Last().ItemId.IsNone())Updated.Pop();
+ if(!FDeadlandsWorldPersistence::SaveInventory(this,GetInventorySaveKey(),Updated))return;
+ Items=MoveTemp(Updated);NotifyItemsChanged();ForceNetUpdate();
+}
 void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer* Container, FName ItemId, bool bTake, int32 Quantity)
 {
     if (!IsValid(Container) || Quantity < 1 || Quantity > 30 ||
