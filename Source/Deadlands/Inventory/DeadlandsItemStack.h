@@ -77,6 +77,9 @@ struct FDeadlandsItems
         FDeadlandsItemStack NewStack;
         NewStack.ItemId = Id;
         NewStack.Quantity = 1;
+        for (auto& Stack : Stacks)
+            if (Stack.ItemId.IsNone() || Stack.Quantity <= 0) { Stack = NewStack; return true; }
+        if (Stacks.Num() >= 16) return false;
         Stacks.Add(NewStack);
         return true;
     }
@@ -85,7 +88,8 @@ struct FDeadlandsItems
         for (int32 i = 0; i < Stacks.Num(); ++i)
             if (Stacks[i].ItemId == Id && Stacks[i].Quantity > 0)
             {
-                if (--Stacks[i].Quantity == 0) Stacks.RemoveAt(i);
+                if (--Stacks[i].Quantity == 0) { Stacks[i].ItemId = NAME_None; }
+                while (!Stacks.IsEmpty() && Stacks.Last().ItemId.IsNone()) Stacks.Pop();
                 return true;
             }
         return false;
