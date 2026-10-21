@@ -318,13 +318,15 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
     NavigateTo(LastKnownLocation, 65.f, Now);
 }
 
-void ADeadlandsZombie::ReceiveMeleeDamage(float Amount)
+void ADeadlandsZombie::ReceiveMeleeDamage(float Amount, bool bHeadshot, bool bHeavy)
 {
     if (!HasAuthority() || bDead || Amount <= 0.f) return;
-    Health = FMath::Max(0.f, Health - Amount);
+    Health = FMath::Max(0.f, Health - Amount * (bHeadshot ? 2.5f : 1.f));
+    ++HitReactionSerial;
+    OnRep_HitReaction();
     bWindingUp = false;
     WindupTarget.Reset();
-    StaggerEndTime = GetWorld() ? GetWorld()->GetTimeSeconds() + StaggerDuration : 0.f;
+    StaggerEndTime = GetWorld() ? GetWorld()->GetTimeSeconds() + StaggerDuration * (bHeavy ? 1.9f : 1.f) : 0.f;
     NextAttackTime = StaggerEndTime + 0.4f;
     if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
     OnRep_Health();
@@ -347,11 +349,17 @@ void ADeadlandsZombie::ApplyDeathVisual()
     // Continue ticking so the corpse can finish its collapse.
 }
 void ADeadlandsZombie::OnRep_Health() {}
+void ADeadlandsZombie::OnRep_HitReaction()
+{
+    VisualStaggerRemaining = 0.45f;
+    LastHitDirection *= -1.f;
+}
 
 void ADeadlandsZombie::UpdateZombieVisual(float DeltaSeconds)
 {
     if (!PlaceholderBody || !HeadVisual || !LeftArmVisual || !RightArmVisual || !LeftLegVisual || !RightLegVisual) return;
     VisualTime += DeltaSeconds;
+    VisualStaggerRemaining = FMath::Max(0.f, VisualStaggerRemaining - DeltaSeconds);
     const float Speed = GetVelocity().Size2D();
     const float Moving = bDead ? 0.f : FMath::Clamp(Speed / 150.f, 0.f, 1.f);
     const float Frequency = ZombieState == EDeadlandsZombieState::Chasing ? 9.f : 5.f;
@@ -363,7 +371,8 @@ void ADeadlandsZombie::UpdateZombieVisual(float DeltaSeconds)
     LeftArmVisual->SetRelativeRotation(FRotator(bAttacking ? -65.f + AttackPulse * 22.f : -18.f - Swing * .6f, 0.f, -12.f));
     RightArmVisual->SetRelativeRotation(FRotator(bAttacking ? -65.f - AttackPulse * 22.f : -18.f + Swing * .6f, 0.f, 12.f));
     HeadVisual->SetRelativeRotation(FRotator(bAttacking ? -10.f : 5.f + FMath::Sin(VisualTime * 2.f) * 4.f, 0.f, 0.f));
-    PlaceholderBody->SetRelativeRotation(FRotator(0.f, 0.f, FMath::Sin(VisualTime * Frequency) * 3.f * Moving));
+    const float HitTilt = VisualStaggerRemaining > 0.f ? FMath::Sin((0.45f - VisualStaggerRemaining) * 11.f) * 20.f * LastHitDirection : 0.f;
+    PlaceholderBody->SetRelativeRotation(FRotator(HitTilt, 0.f, FMath::Sin(VisualTime * Frequency) * 3.f * Moving));
     if (bDead)
     {
         DeathBlend = FMath::Min(1.f, DeathBlend + DeltaSeconds * 1.4f);
@@ -392,4 +401,5 @@ void ADeadlandsZombie::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(ADeadlandsZombie, Health);
     DOREPLIFETIME(ADeadlandsZombie, bDead);
     DOREPLIFETIME(ADeadlandsZombie, ZombieState);
+    DOREPLIFETIME(ADeadlandsZombie, HitReactionSerial);
 }
