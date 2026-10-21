@@ -507,7 +507,7 @@ void ADeadlandsCharacter::ApplyCombatDamage(float Amount)
     ApplySurvivalDamage(Amount * (1.f - GetArmorReduction()));
     if (EnsureItemInventory())
     {
-        Bleeding = FMath::Min(100.f, Bleeding + Amount * 0.35f);
+        Bleeding = FMath::Min(100.f, Bleeding + Amount * (1.f - GetArmorReduction()) * 0.35f);
         if (FMath::FRand() < 0.15f)
             Infection = FMath::Min(100.f, Infection + 20.f);
         FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
