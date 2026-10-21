@@ -84,6 +84,10 @@ public:
     void RequestUseContainerItem(ADeadlandsContainer* Container, FName ItemId);
 
     UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestEquipBackpack();
+    void RequestToggleEquipment(FName ItemId);
+    TArray<FDeadlandsItemStack> GetEquippedGear() const { return EquippedGear; }
+    bool IsGearEquipped(FName ItemId) const;
+    float GetArmorReduction() const;
     UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestCraft(FName Recipe);
     UFUNCTION(BlueprintCallable, Category="Deadlands|Survival") void RequestRepairTools();
     UFUNCTION(BlueprintPure, Category="Deadlands|Survival") bool HasEquippedBackpack() const { return bBackpackEquipped; }
@@ -123,7 +127,7 @@ public:
     int32 GetSupplies() const { return Supplies; }
 
     UFUNCTION(BlueprintPure, Category="Deadlands|Inventory")
-    int32 GetSupplyCapacity() const { return SupplyCapacity + (bBackpackEquipped ? 20 : 0); }
+    int32 GetSupplyCapacity() const { return SupplyCapacity + (bBackpackEquipped ? 20 : 0) + (IsGearEquipped(TEXT("Jacket")) ? 4 : 0) + (IsGearEquipped(TEXT("Pants")) ? 2 : 0); }
 
 protected:
     UPROPERTY(ReplicatedUsing=OnRep_Items, VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Inventory")
@@ -131,6 +135,7 @@ protected:
 
     bool bItemsLoaded = false;
     UPROPERTY(Replicated) bool bBackpackEquipped = false;
+    UPROPERTY(Replicated) TArray<FDeadlandsItemStack> EquippedGear;
     UPROPERTY(Replicated) float Bleeding = 0.f;
     UPROPERTY(Replicated) float Infection = 0.f;
     UPROPERTY(Replicated) int32 ToolCondition = 100;
@@ -229,6 +234,7 @@ protected:
     UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);
     UFUNCTION(Server, Reliable) void ServerUseContainerItem(ADeadlandsContainer* Container, FName ItemId);
     UFUNCTION(Server, Reliable) void ServerEquipBackpack();
+    UFUNCTION(Server, Reliable) void ServerToggleEquipment(FName ItemId);
     UFUNCTION(Server, Reliable) void ServerCraft(FName Recipe);
     UFUNCTION(Server, Reliable) void ServerRepairTools();
     UFUNCTION(Server, Reliable) void ServerDropItem(FName ItemId);
