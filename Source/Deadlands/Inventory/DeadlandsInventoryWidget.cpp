@@ -450,8 +450,11 @@ FReply UDeadlandsInventoryWidget::NativeOnPreviewKeyDown(const FGeometry& Geomet
 
 void UDeadlandsInventoryWidget::ConsumeSelected()
 {
-    if (Survivor && !SelectedId.IsNone() && !bSelectedFromContainer)
-        Survivor->RequestConsumeItem(SelectedId);
+    if (Survivor && !SelectedId.IsNone())
+    {
+        if (bSelectedFromContainer && IsValid(LootContainer)) Survivor->RequestUseContainerItem(LootContainer, SelectedId);
+        else if (!bSelectedFromContainer) Survivor->RequestConsumeItem(SelectedId);
+    }
 }
 void UDeadlandsInventoryWidget::DropSelected()
 {
