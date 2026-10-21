@@ -117,7 +117,7 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
 {
     if (!HasAuthority() || !IsValid(InteractingCharacter)) return;
 
-    if (bCorpseBag) return;
+    if (bCorpseBag || bBuiltStorage) return;
     if (!bOpen)
     {
         bOpen = true;
