@@ -31,4 +31,5 @@ public:
     UPROPERTY() TMap<FString, float> BleedingLevels;
     UPROPERTY() TMap<FString, float> InfectionLevels;
     UPROPERTY() TMap<FString, int32> ToolDurability;
+    UPROPERTY() TMap<FString, FVector> CorpseBagLocations;
 };
