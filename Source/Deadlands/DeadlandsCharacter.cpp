@@ -1002,6 +1002,9 @@ void ADeadlandsCharacter::ServerPlaceBarricade_Implementation()
  FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(DeadlandsBuildGround),false,this);
  if(!GetWorld()->LineTraceSingleByChannel(Ground,Candidate+FVector(0.f,0.f,150.f),Candidate-FVector(0.f,0.f,240.f),ECC_Visibility,GroundParams))return;
  if(Ground.ImpactNormal.Z<0.65f)return;
+ FHitResult Sight;
+ FCollisionQueryParams SightParams(SCENE_QUERY_STAT(DeadlandsBuildSight),false,this);
+ if(GetWorld()->LineTraceSingleByChannel(Sight,Eye,Ground.ImpactPoint+FVector(0.f,0.f,70.f),ECC_Visibility,SightParams))return;
  const FRotator Rotation(0.f,GetBaseAimRotation().Yaw,0.f);
  const FVector Location=Ground.ImpactPoint+FVector(0.f,0.f,75.f);
  const FCollisionShape Shape=FCollisionShape::MakeBox(FVector(14.f,104.f,70.f));
