@@ -11,6 +11,32 @@ FString FDeadlandsWorldPersistence::GetSlotName(const UObject* WorldContext)
     return FString::Printf(TEXT("Deadlands_World_%s"), *MapName);
 }
 
+TMap<FString, FVector> FDeadlandsWorldPersistence::LoadCorpseBags(const UObject* Context)
+{
+    if (!IsValid(Context) || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return {};
+    const auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Context), 0));
+    return Save ? Save->CorpseBagLocations : TMap<FString, FVector>();
+}
+bool FDeadlandsWorldPersistence::RegisterCorpseBag(const UObject* Context, const FString& Key, const FVector& Location)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::CreateSaveGameObject(UDeadlandsWorldSaveGame::StaticClass()));
+    if (!Save) return false;
+    Save->CorpseBagLocations.Add(Key, Location);
+    return UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+}
+bool FDeadlandsWorldPersistence::UnregisterCorpseBag(const UObject* Context, const FString& Key)
+{
+    if (!IsValid(Context) || Key.IsEmpty() || !Context->GetWorld() || Context->GetWorld()->GetNetMode() == NM_Client) return false;
+    const FString Slot = GetSlotName(Context);
+    auto* Save = Cast<UDeadlandsWorldSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+    if (!Save) return false;
+    Save->CorpseBagLocations.Remove(Key);
+    return UGameplayStatics::SaveGameToSlot(Save, Slot, 0);
+}
+
 bool FDeadlandsWorldPersistence::LoadSwitchState(
     const UObject* WorldContext, const FString& ObjectId, bool& OutIsOn)
 {
