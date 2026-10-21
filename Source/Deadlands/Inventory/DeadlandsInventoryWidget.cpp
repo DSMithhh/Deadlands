@@ -40,8 +40,8 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PanelSlot->SetAnchors(FAnchors(0.5f, 0.5f));
     PanelSlot->SetAlignment(FVector2D(0.5f, 0.5f));
     PanelSlot->SetAutoSize(true);
-    Border->SetPadding(FMargin(16.f));
-    Border->SetBrushColor(FLinearColor(0.025f, 0.035f, 0.045f, 0.96f));
+    Border->SetPadding(FMargin(18.f));
+    Border->SetBrushColor(FLinearColor(0.035f, 0.055f, 0.075f, 0.985f));
     UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
     Border->SetContent(Column);
     auto MakeText = [&](const FString& Value) -> UTextBlock*
@@ -52,7 +52,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         Column->AddChildToVerticalBox(Label);
         return Label;
     };
-    Header = MakeText(TEXT("D E A D L A N D S  /  INVENTORY    |    TAB / ESC CLOSE    |    E TRANSFER    |    CTRL+1-5 ASSIGN    |    1-5 USE"));
+    Header = MakeText(TEXT("INVENTORY     /     TAB TO CLOSE"));
     Header->SetColorAndOpacity(FSlateColor(FLinearColor(0.86f, 0.72f, 0.43f)));
     PlayerList = MakeText(TEXT("SURVIVOR"));
     ContainerList = MakeText(TEXT("NEARBY LOOT"));
@@ -74,18 +74,18 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     RightSlot->SetPadding(FMargin(12.f, 10.f, 0.f, 10.f));
     UTextBlock* LeftTitle = WidgetTree->ConstructWidget<UTextBlock>();
     UTextBlock* RightTitle = WidgetTree->ConstructWidget<UTextBlock>();
-    LeftTitle->SetText(FText::FromString(TEXT("YOUR BACKPACK")));
-    RightTitle->SetText(FText::FromString(TEXT("CONTAINER / GROUND")));
+    LeftTitle->SetText(FText::FromString(TEXT("SURVIVOR  /  INVENTORY")));
+    RightTitle->SetText(FText::FromString(TEXT("SEARCHING  /  CONTAINER")));
     LeftTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.75f, 0.85f, 0.92f)));
     RightTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.75f, 0.85f, 0.92f)));
     PlayerPanel->AddChildToVerticalBox(LeftTitle);
     LootPanel->AddChildToVerticalBox(RightTitle);
     USizeBox* PlayerFrame = WidgetTree->ConstructWidget<USizeBox>();
     USizeBox* LootFrame = WidgetTree->ConstructWidget<USizeBox>();
-    PlayerFrame->SetWidthOverride(390.f);
-    LootFrame->SetWidthOverride(390.f);
-    PlayerFrame->SetHeightOverride(230.f);
-    LootFrame->SetHeightOverride(230.f);
+    PlayerFrame->SetWidthOverride(360.f);
+    LootFrame->SetWidthOverride(360.f);
+    PlayerFrame->SetHeightOverride(420.f);
+    LootFrame->SetHeightOverride(420.f);
     PlayerPanel->AddChildToVerticalBox(PlayerFrame);
     LootPanel->AddChildToVerticalBox(LootFrame);
     UScrollBox* PlayerScroll = WidgetTree->ConstructWidget<UScrollBox>();
@@ -114,13 +114,13 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     TakeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeOne);
     UButton* TakeFiveButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* TakeFiveLabel = WidgetTree->ConstructWidget<UTextBlock>();
-    TakeFiveLabel->SetText(FText::FromString(TEXT(" TAKE UP TO 5 ")));
+    TakeFiveLabel->SetText(FText::FromString(TEXT(" TAKE 5 ")));
     TakeFiveButton->AddChild(TakeFiveLabel);
     Buttons->AddChildToHorizontalBox(TakeFiveButton);
     TakeFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::TakeFive);
     UButton* PutFiveButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* PutFiveLabel = WidgetTree->ConstructWidget<UTextBlock>();
-    PutFiveLabel->SetText(FText::FromString(TEXT(" PUT UP TO 5 ")));
+    PutFiveLabel->SetText(FText::FromString(TEXT(" PUT 5 ")));
     PutFiveButton->AddChild(PutFiveLabel);
     Buttons->AddChildToHorizontalBox(PutFiveButton);
     PutFiveButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutFive);
@@ -139,25 +139,32 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PutStackButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::PutStack);
     UButton* ConsumeButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* ConsumeLabel = WidgetTree->ConstructWidget<UTextBlock>();
-    ConsumeLabel->SetText(FText::FromString(TEXT(" USE SELECTED (FOOD / WATER / MEDICINE) ")));
+    ConsumeLabel->SetText(FText::FromString(TEXT(" USE ")));
     ConsumeButton->AddChild(ConsumeLabel);
     Buttons->AddChildToHorizontalBox(ConsumeButton);
     ConsumeButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ConsumeSelected);
     UButton* DropButton = WidgetTree->ConstructWidget<UButton>();
     UTextBlock* DropLabel = WidgetTree->ConstructWidget<UTextBlock>();
-    DropLabel->SetText(FText::FromString(TEXT(" DROP ONE SELECTED ")));
+    DropLabel->SetText(FText::FromString(TEXT(" DROP ")));
     DropButton->AddChild(DropLabel);
     Buttons->AddChildToHorizontalBox(DropButton);
     DropButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::DropSelected);
-    UHorizontalBox* CraftRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-    Column->AddChildToVerticalBox(CraftRow);
+    UButton* CraftToggle = WidgetTree->ConstructWidget<UButton>();
+    UTextBlock* CraftToggleText = WidgetTree->ConstructWidget<UTextBlock>();
+    CraftToggleText->SetText(FText::FromString(TEXT(" CRAFTING / REPAIR  [EXPAND] ")));
+    CraftToggle->AddChild(CraftToggleText);
+    Column->AddChildToVerticalBox(CraftToggle);
+    CraftToggle->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::ToggleCraftActions);
+    CraftActions = WidgetTree->ConstructWidget<UHorizontalBox>();
+    Column->AddChildToVerticalBox(CraftActions);
+    CraftActions->SetVisibility(ESlateVisibility::Collapsed);
     auto AddAction = [&](const TCHAR* Title)
     {
         UButton* Action = WidgetTree->ConstructWidget<UButton>();
         UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>();
         Label->SetText(FText::FromString(Title));
         Action->AddChild(Label);
-        CraftRow->AddChildToHorizontalBox(Action);
+        CraftActions->AddChildToHorizontalBox(Action);
         return Action;
     };
     UButton* BackpackButton = AddAction(TEXT(" EQUIP / UNEQUIP BACKPACK "));
@@ -213,11 +220,11 @@ void UDeadlandsInventoryWidget::Refresh()
 {
     if (!PlayerList || !ContainerList) return;
     if (Survivor)
-        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("CARRY %d/%d   |   BACKPACK %s   |   BLEED %.0f   |   INFECTION %.0f   |   TOOLS %d%%"),
+        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("BACKPACK   %d/%d KG     |     EQUIPPED %s     |     BLEED %.0f     |     INFECTION %.0f     |     TOOLS %d%%"),
             FDeadlandsItems::TotalWeight(Survivor->GetItems()), Survivor->GetSupplyCapacity(), Survivor->HasEquippedBackpack() ? TEXT("ON") : TEXT("OFF"), Survivor->GetBleeding(), Survivor->GetInfection(), Survivor->GetToolDurability())));
     ContainerList->SetText(FText::FromString(LootContainer
-        ? FString::Printf(TEXT("LOOT ITEMS: %d"), FDeadlandsItems::Total(LootContainer->GetItems()))
-        : TEXT("NO CONTAINER OPEN - LOOK AT ONE AND PRESS F")));
+        ? FString::Printf(TEXT("SEARCHING CONTAINER    /    %d ITEMS"), FDeadlandsItems::Total(LootContainer->GetItems()))
+        : TEXT("NO CONTAINER OPEN")));
     // Rebuild only when inventory contents change; do not steal focus every tick.
     FString Signature = IsValid(LootContainer) ? TEXT("LOOT") : TEXT("SOLO");
     auto AppendSignature = [&](const TArray<FDeadlandsItemStack>& Stacks)
@@ -243,14 +250,22 @@ void UDeadlandsInventoryWidget::Refresh()
                 UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
                 Text->SetText(FText::FromString(FString::Printf(TEXT("%s  x%d"), *Stack.ItemId.ToString(), Stack.Quantity)));
                 Text->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-                Tile->AddChild(Text);
+                Text->SetAutoWrapText(true);
+                USizeBox* TileSize = WidgetTree->ConstructWidget<USizeBox>();
+                TileSize->SetWidthOverride(108.f);
+                TileSize->SetHeightOverride(96.f);
+                UBorder* TileBackground = WidgetTree->ConstructWidget<UBorder>();
+                TileBackground->SetPadding(FMargin(6.f));
+                TileBackground->SetContent(Text);
+                TileSize->SetContent(TileBackground);
+                Tile->AddChild(TileSize);
                 const bool bThisContainer = Grid == LootGrid;
                 const bool bSelected = Stack.ItemId == SelectedId && bThisContainer == bSelectedFromContainer;
                 const FString Rarity = FDeadlandsItems::Rarity(Stack.ItemId);
                 const FLinearColor Base = Rarity == TEXT("RARE") ? FLinearColor(0.29f, 0.21f, 0.39f) : Rarity == TEXT("UNCOMMON") ? FLinearColor(0.17f, 0.31f, 0.29f) : FLinearColor(0.16f, 0.22f, 0.27f);
                 Tile->SetBackgroundColor(bSelected ? FLinearColor(0.43f, 0.53f, 0.60f) : Base);
                 Tile->SetToolTipText(FText::FromString(FString::Printf(TEXT("%s | %s | %d weight each | x%d"), *Stack.ItemId.ToString(), FDeadlandsItems::Rarity(Stack.ItemId), FDeadlandsItems::Weight(Stack.ItemId), Stack.Quantity)));
-                Grid->AddChildToUniformGrid(Tile, (Index % 16) / 4, Index % 4);
+                Grid->AddChildToUniformGrid(Tile, (Index % 16) / 3, Index % 3);
                 switch (Index)
                 {
                     case 0: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot0); break;
@@ -502,3 +517,4 @@ void UDeadlandsInventoryWidget::PutFive()
     if (Survivor && LootContainer && !SelectedId.IsNone() && !bSelectedFromContainer)
         Survivor->RequestItemTransfer(LootContainer, SelectedId, false, 5);
 }
+\nvoid UDeadlandsInventoryWidget::ToggleCraftActions()\n{\n    if (CraftActions)\n        CraftActions->SetVisibility(CraftActions->GetVisibility() == ESlateVisibility::Collapsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);\n}\n
