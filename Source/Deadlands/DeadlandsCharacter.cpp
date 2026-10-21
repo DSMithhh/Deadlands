@@ -371,16 +371,28 @@ void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer
         FDeadlandsItems::MaxStack(ItemId) == 0 || !EnsureItemInventory()) return;
     const FVector Eye = GetPawnViewLocation();
     const FBox Bounds = Container->GetComponentsBoundingBox();
-    if (FVector::DistSquared(Eye, Bounds.GetClosestPointTo(Eye)) > FMath::Square(250.f)) return;
+    const FVector ContainerPoint = Bounds.GetClosestPointTo(Eye);
+    const bool bNearBag = FVector::DistSquared(Eye, ContainerPoint) <= FMath::Square(250.f);
+    ADeadlandsZombie* MatchingCorpse = nullptr;
+    if (Container->IsCorpseBag())
+    {
+        for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+        {
+            if (IsValid(*It) && It->GetCorpseLoot() == Container && It->GetZombieHealth() <= 0.f)
+            {
+                MatchingCorpse = *It;
+                break;
+            }
+        }
+    }
+    const bool bNearCorpse = MatchingCorpse &&
+        FVector::DistSquared(Eye, MatchingCorpse->GetComponentsBoundingBox().GetClosestPointTo(Eye)) <= FMath::Square(250.f);
+    if (!bNearBag && !bNearCorpse) return;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsInventoryTransfer), false, this);
-    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Bounds.GetCenter(), ECC_Visibility, Params)) return;
-    if (Hit.GetActor() != Container)
-    {
-        const ADeadlandsZombie* Corpse = Cast<ADeadlandsZombie>(Hit.GetActor());
-        if (!Container->IsCorpseBag() || !Corpse || Corpse->GetCorpseLoot() != Container ||
-            Corpse->GetZombieHealth() > 0.f) return;
-    }
+    const FVector TraceTarget = bNearCorpse ? MatchingCorpse->GetComponentsBoundingBox().GetCenter() : Bounds.GetCenter();
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, TraceTarget, ECC_Visibility, Params)) return;
+    if (Hit.GetActor() != Container && Hit.GetActor() != MatchingCorpse) return;
     Container->TransferItemsToCharacter(this, ItemId, bTake, Quantity);
 }
 
@@ -729,6 +741,43 @@ void ADeadlandsCharacter::RequestConsumeItem(FName ItemId)
 {
     if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water") || ItemId == TEXT("Medicine") || ItemId == TEXT("Bandage") || ItemId == TEXT("Antibiotics")))
         ServerConsumeItem(ItemId);
+}
+void ADeadlandsCharacter::RequestUseContainerItem(ADeadlandsContainer* Container, FName ItemId)
+{
+    if (IsLocallyControlled() && IsValid(Container)) ServerUseContainerItem(Container, ItemId);
+}
+void ADeadlandsCharacter::ServerUseContainerItem_Implementation(ADeadlandsContainer* Container, FName ItemId)
+{
+    if (bIsDead || !Vitals || !IsValid(Container) || !EnsureItemInventory()) return;
+    if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine") &&
+        ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics") && ItemId != TEXT("Backpack")) return;
+    if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
+        (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f) ||
+        (ItemId == TEXT("Medicine") && Health >= MaxHealth) ||
+        (ItemId == TEXT("Bandage") && Bleeding <= 0.f) ||
+        (ItemId == TEXT("Antibiotics") && Infection <= 0.f) ||
+        (ItemId == TEXT("Backpack") && bBackpackEquipped)) return;
+    // Reuse the same server-side reach and obstruction checks as manual transfers.
+    // No client-side consumption is trusted.
+    const FVector Eye = GetPawnViewLocation();
+    ADeadlandsZombie* MatchingCorpse = nullptr;
+    if (Container->IsCorpseBag())
+        for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+            if (IsValid(*It) && It->GetCorpseLoot() == Container && It->GetZombieHealth() <= 0.f)
+            { MatchingCorpse = *It; break; }
+    const FBox Bounds = Container->GetComponentsBoundingBox();
+    const bool bNearBag = FVector::DistSquared(Eye, Bounds.GetClosestPointTo(Eye)) <= FMath::Square(250.f);
+    const bool bNearCorpse = MatchingCorpse &&
+        FVector::DistSquared(Eye, MatchingCorpse->GetComponentsBoundingBox().GetClosestPointTo(Eye)) <= FMath::Square(250.f);
+    if (!bNearBag && !bNearCorpse) return;
+    FHitResult Hit;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsUseContainerItem), false, this);
+    const FVector Target = bNearCorpse ? MatchingCorpse->GetComponentsBoundingBox().GetCenter() : Bounds.GetCenter();
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Target, ECC_Visibility, Params) ||
+        (Hit.GetActor() != Container && Hit.GetActor() != MatchingCorpse)) return;
+    if (!Container->TransferItemsToCharacter(this, ItemId, true, 1)) return;
+    if (ItemId == TEXT("Backpack")) ServerEquipBackpack_Implementation();
+    else ServerConsumeItem_Implementation(ItemId);
 }
 void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
 {
