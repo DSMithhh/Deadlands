@@ -28,6 +28,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
 {
     Super::NativeOnInitialized();
     SetIsFocusable(true);
+    QuickSlots.SetNum(5);
     UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
     UCanvasPanel* Canvas = WidgetTree->ConstructWidget<UCanvasPanel>();
     WidgetTree->RootWidget = Canvas;
@@ -69,6 +70,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PlayerPanel->AddChildToVerticalBox(PlayerGrid);
     LootPanel->AddChildToVerticalBox(LootGrid);
     ItemDetails = MakeText(TEXT("SELECT AN ITEM TO VIEW DETAILS"));
+    QuickbarLabel = MakeText(TEXT("QUICK ACCESS  1-5"));
     ItemDetails->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.84f, 0.90f)));
     UHorizontalBox* Buttons = WidgetTree->ConstructWidget<UHorizontalBox>();
     Column->AddChildToVerticalBox(Buttons);
@@ -128,6 +130,31 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     MedicineButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::CraftMedicine);
     UButton* RepairButton = AddAction(TEXT(" REPAIR TOOLS (SCRAP + MATERIALS) "));
     RepairButton->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::RepairTools);
+    UHorizontalBox* QuickAssign = WidgetTree->ConstructWidget<UHorizontalBox>();
+    UHorizontalBox* QuickUse = WidgetTree->ConstructWidget<UHorizontalBox>();
+    Column->AddChildToVerticalBox(QuickAssign);
+    Column->AddChildToVerticalBox(QuickUse);
+    for (int32 I = 0; I < 5; ++I)
+    {
+        UButton* Assign = WidgetTree->ConstructWidget<UButton>();
+        UButton* Use = WidgetTree->ConstructWidget<UButton>();
+        UTextBlock* AssignText = WidgetTree->ConstructWidget<UTextBlock>();
+        UTextBlock* UseText = WidgetTree->ConstructWidget<UTextBlock>();
+        AssignText->SetText(FText::FromString(FString::Printf(TEXT(" SET %d "), I + 1)));
+        UseText->SetText(FText::FromString(FString::Printf(TEXT(" USE %d "), I + 1)));
+        Assign->AddChild(AssignText);
+        Use->AddChild(UseText);
+        QuickAssign->AddChildToHorizontalBox(Assign);
+        QuickUse->AddChildToHorizontalBox(Use);
+        switch (I)
+        {
+            case 0: Assign->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::AssignQuickSlot1); Use->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::UseQuickSlot1); break;
+            case 1: Assign->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::AssignQuickSlot2); Use->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::UseQuickSlot2); break;
+            case 2: Assign->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::AssignQuickSlot3); Use->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::UseQuickSlot3); break;
+            case 3: Assign->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::AssignQuickSlot4); Use->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::UseQuickSlot4); break;
+            case 4: Assign->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::AssignQuickSlot5); Use->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::UseQuickSlot5); break;
+        }
+    }
     Refresh();
 }
 
@@ -179,10 +206,10 @@ void UDeadlandsInventoryWidget::Refresh()
         {
             for (const auto& Stack : Stacks)
             {
-                if (Index >= (Grid == PlayerGrid ? 8 : 16)) break;
+                if (Index >= (Grid == PlayerGrid ? 16 : 32)) break;
                 UButton* Tile = WidgetTree->ConstructWidget<UButton>();
                 UTextBlock* Text = WidgetTree->ConstructWidget<UTextBlock>();
-                Text->SetText(FText::FromString(FString::Printf(TEXT("%s\\nx%d"), *Stack.ItemId.ToString(), Stack.Quantity)));
+                Text->SetText(FText::FromString(FString::Printf(TEXT("%s\nx%d"), *Stack.ItemId.ToString(), Stack.Quantity)));
                 Text->SetColorAndOpacity(FSlateColor(FLinearColor::White));
                 Tile->AddChild(Text);
                 Tile->SetBackgroundColor(Stack.ItemId == SelectedId ? FLinearColor(0.32f, 0.52f, 0.62f) : FLinearColor(0.16f, 0.22f, 0.27f));
@@ -205,14 +232,37 @@ void UDeadlandsInventoryWidget::Refresh()
                     case 13: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot13); break;
                     case 14: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot14); break;
                     case 15: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot15); break;
+                    case 16: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot16); break;
+                    case 17: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot17); break;
+                    case 18: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot18); break;
+                    case 19: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot19); break;
+                    case 20: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot20); break;
+                    case 21: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot21); break;
+                    case 22: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot22); break;
+                    case 23: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot23); break;
+                    case 24: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot24); break;
+                    case 25: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot25); break;
+                    case 26: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot26); break;
+                    case 27: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot27); break;
+                    case 28: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot28); break;
+                    case 29: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot29); break;
+                    case 30: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot30); break;
+                    case 31: Tile->OnClicked.AddDynamic(this, &UDeadlandsInventoryWidget::SelectSlot31); break;
                 }
                 ++Index;
             }
-            Index = 8;
+            Index = 16;
         };
         if (Survivor) BuildGrid(PlayerGrid, Survivor->GetItems());
-        Index = 8;
+        Index = 16;
         if (LootContainer) BuildGrid(LootGrid, LootContainer->GetItems());
+    }
+    if (QuickbarLabel)
+    {
+        FString Text = TEXT("QUICK ACCESS");
+        for (int32 I = 0; I < QuickSlots.Num(); ++I)
+            Text += FString::Printf(TEXT("  [%d] %s"), I + 1, QuickSlots[I].IsNone() ? TEXT("-") : *QuickSlots[I].ToString());
+        QuickbarLabel->SetText(FText::FromString(Text));
     }
     if (ItemDetails)
     {
@@ -295,9 +345,9 @@ void UDeadlandsInventoryWidget::RepairTools() { if (Survivor) Survivor->RequestR
 void UDeadlandsInventoryWidget::SelectIndex(int32 Index)
 {
     if (!Survivor) return;
-    const bool bContainer = Index >= 8;
+    const bool bContainer = Index >= 16;
     const auto Stacks = bContainer ? (LootContainer ? LootContainer->GetItems() : TArray<FDeadlandsItemStack>()) : Survivor->GetItems();
-    const int32 LocalIndex = bContainer ? Index - 8 : Index;
+    const int32 LocalIndex = bContainer ? Index - 16 : Index;
     if (!Stacks.IsValidIndex(LocalIndex)) return;
     SelectedId = Stacks[LocalIndex].ItemId;
     bSelectedFromContainer = bContainer;
@@ -321,3 +371,41 @@ void UDeadlandsInventoryWidget::SelectSlot12() { SelectIndex(12); }
 void UDeadlandsInventoryWidget::SelectSlot13() { SelectIndex(13); }
 void UDeadlandsInventoryWidget::SelectSlot14() { SelectIndex(14); }
 void UDeadlandsInventoryWidget::SelectSlot15() { SelectIndex(15); }
+
+void UDeadlandsInventoryWidget::AssignQuickSlot(int32 Slot)
+{
+    if (QuickSlots.IsValidIndex(Slot) && !SelectedId.IsNone() && !bSelectedFromContainer)
+        QuickSlots[Slot] = SelectedId;
+    Refresh();
+}
+void UDeadlandsInventoryWidget::UseQuickSlot(int32 Slot)
+{
+    if (Survivor && QuickSlots.IsValidIndex(Slot) && !QuickSlots[Slot].IsNone())
+        Survivor->RequestConsumeItem(QuickSlots[Slot]);
+}
+void UDeadlandsInventoryWidget::AssignQuickSlot1() { AssignQuickSlot(0); }
+void UDeadlandsInventoryWidget::UseQuickSlot1() { UseQuickSlot(0); }
+void UDeadlandsInventoryWidget::AssignQuickSlot2() { AssignQuickSlot(1); }
+void UDeadlandsInventoryWidget::UseQuickSlot2() { UseQuickSlot(1); }
+void UDeadlandsInventoryWidget::AssignQuickSlot3() { AssignQuickSlot(2); }
+void UDeadlandsInventoryWidget::UseQuickSlot3() { UseQuickSlot(2); }
+void UDeadlandsInventoryWidget::AssignQuickSlot4() { AssignQuickSlot(3); }
+void UDeadlandsInventoryWidget::UseQuickSlot4() { UseQuickSlot(3); }
+void UDeadlandsInventoryWidget::AssignQuickSlot5() { AssignQuickSlot(4); }
+void UDeadlandsInventoryWidget::UseQuickSlot5() { UseQuickSlot(4); }
+void UDeadlandsInventoryWidget::SelectSlot16() { SelectIndex(16); }
+void UDeadlandsInventoryWidget::SelectSlot17() { SelectIndex(17); }
+void UDeadlandsInventoryWidget::SelectSlot18() { SelectIndex(18); }
+void UDeadlandsInventoryWidget::SelectSlot19() { SelectIndex(19); }
+void UDeadlandsInventoryWidget::SelectSlot20() { SelectIndex(20); }
+void UDeadlandsInventoryWidget::SelectSlot21() { SelectIndex(21); }
+void UDeadlandsInventoryWidget::SelectSlot22() { SelectIndex(22); }
+void UDeadlandsInventoryWidget::SelectSlot23() { SelectIndex(23); }
+void UDeadlandsInventoryWidget::SelectSlot24() { SelectIndex(24); }
+void UDeadlandsInventoryWidget::SelectSlot25() { SelectIndex(25); }
+void UDeadlandsInventoryWidget::SelectSlot26() { SelectIndex(26); }
+void UDeadlandsInventoryWidget::SelectSlot27() { SelectIndex(27); }
+void UDeadlandsInventoryWidget::SelectSlot28() { SelectIndex(28); }
+void UDeadlandsInventoryWidget::SelectSlot29() { SelectIndex(29); }
+void UDeadlandsInventoryWidget::SelectSlot30() { SelectIndex(30); }
+void UDeadlandsInventoryWidget::SelectSlot31() { SelectIndex(31); }
