@@ -25,6 +25,10 @@ public:
     ADeadlandsContainer();
     /** Configure a runtime-spawned container before BeginPlay. */
     void ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile);
+    void ConfigureCorpseLoot(FName StableId, const TArray<FDeadlandsItemStack>& Loot, bool bAsBag);
+    void RevealCorpseBag();
+    bool IsCorpseBag() const { return bCorpseBag; }
+    bool HasLootRemaining() const { return !Items.IsEmpty(); }
     bool TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity);
     UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
@@ -85,6 +89,10 @@ protected:
     void OnContainerStateChanged(bool bIsOpen);
 
 private:
+    UPROPERTY(ReplicatedUsing=OnRep_BagVisibility) bool bBagVisible = true;
+    UPROPERTY(Replicated) bool bCorpseBag = false;
+    UFUNCTION() void OnRep_BagVisibility();
+    void ApplyBagAppearance();
     FString GetPersistenceKey() const;
     void ApplyState();
     TArray<FDeadlandsItemStack> GenerateInitialLoot() const;

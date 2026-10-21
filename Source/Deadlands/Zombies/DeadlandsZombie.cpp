@@ -1,5 +1,7 @@
 #include "Zombies/DeadlandsZombie.h"
 #include "DeadlandsCharacter.h"
+#include "Interaction/DeadlandsContainer.h"
+#include "Persistence/DeadlandsWorldPersistence.h"
 #include "AIController.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
@@ -56,10 +58,12 @@ void ADeadlandsZombie::BeginPlay()
     if (HasAuthority())
     {
         // Two server-selected prototypes: common walkers and uncommon runners.
-        bFastVariant = FMath::FRand() < 0.25f;
-        WalkSpeed = bFastVariant ? 310.f : 180.f;
-        MaxHealth = bFastVariant ? 40.f : FMath::FRandRange(50.f, 80.f);
-        AttackDamage = bFastVariant ? 7.f : 10.f;
+        bRareVariant = FMath::FRand() < 0.10f;
+        bFastVariant = !bRareVariant && FMath::FRand() < 0.25f;
+        WalkSpeed = bRareVariant ? 145.f : (bFastVariant ? 310.f : 180.f);
+        MaxHealth = bRareVariant ? 120.f : (bFastVariant ? 40.f : FMath::FRandRange(50.f, 75.f));
+        AttackDamage = bRareVariant ? 17.f : (bFastVariant ? 7.f : 10.f);
+        OnRep_Variant();
         Health = MaxHealth;
         HomeLocation = GetActorLocation();
         NextWanderTime = GetWorld()->GetTimeSeconds() + FMath::FRandRange(3.f, 7.f);
@@ -187,7 +191,16 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     UpdateZombieVisual(DeltaSeconds);
-    if (!HasAuthority() || bDead || !GetWorld()) return;
+    if (!HasAuthority() || !GetWorld()) return;
+    if (bDead)
+    {
+        if (!bLootBagRevealed && GetLifeSpan() > 0.f && GetLifeSpan() < 1.5f)
+        {
+            bLootBagRevealed = true;
+            if (IsValid(CorpseLoot)) CorpseLoot->RevealCorpseBag();
+        }
+        return;
+    }
     const float Now = GetWorld()->GetTimeSeconds();
     if (Now < StaggerEndTime)
     {
@@ -336,17 +349,69 @@ void ADeadlandsZombie::ReceiveMeleeDamage(float Amount, bool bHeadshot, bool bHe
         SetZombieState(EDeadlandsZombieState::Dead);
         if (AAIController* AI = Cast<AAIController>(GetController())) AI->StopMovement();
         GetCharacterMovement()->DisableMovement();
-        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+        GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+        CreateCorpseLoot();
         ApplyDeathVisual();
         SetLifeSpan(CorpseDestroyDelay);
     }
     ForceNetUpdate();
 }
 
+bool ADeadlandsZombie::CanInteract_Implementation(ACharacter* InteractingCharacter) const
+{
+    return bDead && IsValid(CorpseLoot) && IsValid(InteractingCharacter);
+}
+void ADeadlandsZombie::Interact_Implementation(ACharacter* InteractingCharacter)
+{
+    // Client opens the existing inventory widget; the server validates interaction range.
+}
+void ADeadlandsZombie::CreateCorpseLoot()
+{
+    if (!HasAuthority() || !GetWorld() || IsValid(CorpseLoot)) return;
+    TArray<FDeadlandsItemStack> Rolled;
+    auto Roll = [&](FName Id, float Chance, int32 MaxCount)
+    {
+        if (FMath::FRand() < Chance)
+        {
+            const int32 Count = FMath::RandRange(1, MaxCount);
+            for (int32 i = 0; i < Count; ++i) FDeadlandsItems::AddOne(Rolled, Id, 1000);
+        }
+    };
+    const bool bRare = bRareVariant;
+    Roll(TEXT("Cloth"), .65f, 3);
+    Roll(TEXT("Scrap"), .55f, 3);
+    Roll(TEXT("Food"), .22f, 2);
+    Roll(TEXT("Water"), .20f, 2);
+    Roll(TEXT("Bandage"), bRare ? .55f : .18f, 2);
+    Roll(TEXT("Medicine"), bRare ? .35f : .07f, 1);
+    Roll(TEXT("Antibiotics"), bRare ? .25f : .03f, 1);
+    Roll(TEXT("Ammo9mm"), bFastVariant ? .3f : .12f, 5);
+    Roll(TEXT("Tools"), bRare ? .22f : .08f, 1);
+    if (Rolled.IsEmpty()) Roll(TEXT("Scrap"), 1.f, 1);
+    const FName DropId(*FString::Printf(TEXT("Corpse_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Digits)));
+    FActorSpawnParameters Params;
+    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    ADeadlandsContainer* Bag = GetWorld()->SpawnActorDeferred<ADeadlandsContainer>(
+        ADeadlandsContainer::StaticClass(), FTransform(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, -76.f)),
+        nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+    if (!Bag) return;
+    Bag->ConfigureCorpseLoot(DropId, Rolled, false);
+    Bag->FinishSpawning(FTransform(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, -76.f)));
+    CorpseLoot = Bag;
+    FDeadlandsWorldPersistence::RegisterCorpseBag(this, DropId.ToString(), Bag->GetActorLocation());
+    ForceNetUpdate();
+}
 void ADeadlandsZombie::ApplyDeathVisual()
 {
     // Keep the inert placeholder visible as a temporary corpse until cleanup.
     // Continue ticking so the corpse can finish its collapse.
+}
+void ADeadlandsZombie::OnRep_Variant()
+{
+    if (PlaceholderBody) PlaceholderBody->SetRelativeScale3D(bRareVariant ? FVector(.52f, .33f, .72f) : (bFastVariant ? FVector(.30f, .20f, .52f) : FVector(.37f, .23f, .57f)));
+    if (HeadVisual) HeadVisual->SetRelativeScale3D(bRareVariant ? FVector(.39f, .36f, .39f) : FVector(.30f, .27f, .32f));
 }
 void ADeadlandsZombie::OnRep_Health() {}
 void ADeadlandsZombie::OnRep_HitReaction()
@@ -391,7 +456,9 @@ void ADeadlandsZombie::OnRep_Dead()
 {
     if (bDead)
     {
-        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+        GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
         ApplyDeathVisual();
     }
 }
@@ -402,4 +469,7 @@ void ADeadlandsZombie::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(ADeadlandsZombie, bDead);
     DOREPLIFETIME(ADeadlandsZombie, ZombieState);
     DOREPLIFETIME(ADeadlandsZombie, HitReactionSerial);
+    DOREPLIFETIME(ADeadlandsZombie, CorpseLoot);
+    DOREPLIFETIME(ADeadlandsZombie, bFastVariant);
+    DOREPLIFETIME(ADeadlandsZombie, bRareVariant);
 }

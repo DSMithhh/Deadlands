@@ -13,6 +13,9 @@ public:
     static bool LoadInventory(const UObject* Context, const FString& Key, TArray<FDeadlandsItemStack>& Out);
     static bool SaveInventory(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items);
     static bool TransferItem(const UObject* Context, const FString& SourceKey, const FString& DestinationKey, FName ItemId, int32 Capacity, TArray<FDeadlandsItemStack>& Source, TArray<FDeadlandsItemStack>& Destination);
+    static bool RegisterCorpseBag(const UObject* Context, const FString& Key, const FVector& Location);
+    static bool UnregisterCorpseBag(const UObject* Context, const FString& Key);
+    static TMap<FString, FVector> LoadCorpseBags(const UObject* Context);
     static bool LoadSwitchState(const UObject* WorldContext, const FString& ObjectId, bool& OutIsOn);
     static bool SaveSwitchState(const UObject* WorldContext, const FString& ObjectId, bool bIsOn);
     static bool LoadContainerSupplies(const UObject* WorldContext, const FString& ObjectId, int32& OutAmount);
