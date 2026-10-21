@@ -1,6 +1,7 @@
 #include "Inventory/DeadlandsInventoryTile.h"
 #include "Inventory/DeadlandsInventoryWidget.h"
 #include "Inventory/DeadlandsInventoryDrag.h"
+#include "Blueprint/DragDropOperation.h"
 #include "Inventory/DeadlandsItemStack.h"
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
@@ -57,7 +58,10 @@ void UDeadlandsInventoryTile::NativeOnDragDetected(const FGeometry& Geometry,con
 {
  if(ItemId.IsNone()||!InventoryOwner)return;
  UDeadlandsInventoryDrag* Drag=NewObject<UDeadlandsInventoryDrag>(this);
- Drag->ItemId=ItemId;Drag->bFromContainer=bContainerTile;Drag->SourceIndex=SlotIndex;Drag->bWholeStack=Event.IsShiftDown();Operation=Drag;
+ Drag->ItemId=ItemId;Drag->bFromContainer=bContainerTile;Drag->SourceIndex=SlotIndex;Drag->bWholeStack=Event.IsShiftDown();
+ UDeadlandsInventoryTile* Ghost=CreateWidget<UDeadlandsInventoryTile>(GetOwningPlayer(),UDeadlandsInventoryTile::StaticClass());
+ if(Ghost){Ghost->Configure(nullptr,bContainerTile,SlotIndex,ItemId,Count);Ghost->SetVisibility(ESlateVisibility::HitTestInvisible);Drag->DefaultDragVisual=Ghost;}
+ Operation=Drag;
 }
 bool UDeadlandsInventoryTile::NativeOnDrop(const FGeometry& Geometry,const FDragDropEvent& Event,UDragDropOperation* Operation)
 {
