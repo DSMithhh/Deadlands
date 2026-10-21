@@ -184,8 +184,12 @@ protected:
     FString CombatFeedback;
     float CombatFeedbackUntil = 0.f;
     void TryMeleeAttack();
+    void TryHeavyMeleeAttack();
+    void ExecuteMeleeAttack(bool bHeavy);
+    UFUNCTION(Server, Reliable) void ServerHeavyMeleeAttack();
     UFUNCTION(Server, Reliable) void ServerMeleeAttack();
     UFUNCTION(Client, Reliable) void ClientCombatFeedback(bool bHit);
+    UFUNCTION(Client, Reliable) void ClientDetailedCombatFeedback(const FString& Message);
 
     void BeginSprint();
     void EndSprint();
