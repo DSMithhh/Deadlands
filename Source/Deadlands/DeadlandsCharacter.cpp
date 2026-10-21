@@ -1070,7 +1070,7 @@ void ADeadlandsCharacter::ServerPlaceBarricade_Implementation(uint8 Type,float R
 {
  if(bIsDead||!GetWorld()||!EnsureItemInventory()||Type>4||!FMath::IsFinite(RotationOffset))return;
  FTransform Transform;
- if(!ComputeBuildTransform(Type,RotationOffset))return;
+ if(!ComputeBuildTransform(Type,RotationOffset,Transform))return;
  const int32 MaterialCost=Type==1?4:Type==2?3:Type==3?3:Type==4?2:3;
  const int32 ScrapCost=Type==3?3:Type==4?2:Type==1?1:2;
  TArray<FDeadlandsItemStack> Updated=Items;
