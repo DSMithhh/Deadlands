@@ -22,6 +22,8 @@ void UDeadlandsInventoryWidget::SetInventoryContext(ADeadlandsCharacter* Charact
 {
     Survivor = Character;
     LootContainer = Container;
+    SelectedId = NAME_None;
+    bSelectedFromContainer = false;
     GridSignature.Empty();
     Refresh();
 }
@@ -210,14 +212,6 @@ void UDeadlandsInventoryWidget::NativeTick(const FGeometry& Geometry, float Delt
 void UDeadlandsInventoryWidget::Refresh()
 {
     if (!PlayerList || !ContainerList) return;
-    auto Format = [](const TArray<FDeadlandsItemStack>& Stacks) -> FString
-    {
-        if (Stacks.IsEmpty()) return TEXT("(empty)");
-        FString Result;
-        for (const auto& Stack : Stacks)
-            Result += FString::Printf(TEXT("\n%s x%d"), *Stack.ItemId.ToString(), Stack.Quantity);
-        return Result;
-    };
     if (Survivor)
         PlayerList->SetText(FText::FromString(FString::Printf(TEXT("CARRY %d/%d   |   BACKPACK %s   |   BLEED %.0f   |   INFECTION %.0f   |   TOOLS %d%%"),
             FDeadlandsItems::TotalWeight(Survivor->GetItems()), Survivor->GetSupplyCapacity(), Survivor->HasEquippedBackpack() ? TEXT("ON") : TEXT("OFF"), Survivor->GetBleeding(), Survivor->GetInfection(), Survivor->GetToolDurability())));
@@ -309,9 +303,29 @@ void UDeadlandsInventoryWidget::Refresh()
     }
     if (ItemDetails)
     {
-        const FString Id = SelectedId.IsNone() ? TEXT("SELECT AN ITEM") : SelectedId.ToString();
-        ItemDetails->SetText(FText::FromString(SelectedId.IsNone() ? Id :
-            FString::Printf(TEXT("%s  |  %s  |  WEIGHT %d"), *Id, FDeadlandsItems::Rarity(SelectedId), FDeadlandsItems::Weight(SelectedId))));
+        if (SelectedId.IsNone())
+            ItemDetails->SetText(FText::FromString(TEXT("SELECT A TILE  |  E TRANSFER  |  DEL DROP  |  CTRL+1-5 ASSIGN")));
+        else
+        {
+            int32 Count = 0;
+            const TArray<FDeadlandsItemStack> Stacks = bSelectedFromContainer
+                ? (LootContainer ? LootContainer->GetItems() : TArray<FDeadlandsItemStack>())
+                : (Survivor ? Survivor->GetItems() : TArray<FDeadlandsItemStack>());
+            for (const auto& Stack : Stacks)
+                if (Stack.ItemId == SelectedId) Count += Stack.Quantity;
+            const TCHAR* Hint = SelectedId == TEXT("Food") ? TEXT("Restores hunger")
+                : SelectedId == TEXT("Water") ? TEXT("Restores thirst")
+                : SelectedId == TEXT("Bandage") ? TEXT("Treats bleeding")
+                : SelectedId == TEXT("Antibiotics") ? TEXT("Treats infection")
+                : SelectedId == TEXT("Medicine") ? TEXT("Medical supply")
+                : SelectedId == TEXT("Backpack") ? TEXT("Equip for +20 carry capacity")
+                : SelectedId == TEXT("Tools") ? TEXT("Crafting / repair tools")
+                : SelectedId == TEXT("Pistol") ? TEXT("Weapon")
+                : TEXT("Survival resource");
+            ItemDetails->SetText(FText::FromString(FString::Printf(TEXT("%s  x%d  |  %s  |  %d EACH  |  %s  |  %s"),
+                *SelectedId.ToString(), Count, FDeadlandsItems::Rarity(SelectedId),
+                FDeadlandsItems::Weight(SelectedId), bSelectedFromContainer ? TEXT("CONTAINER") : TEXT("BACKPACK"), Hint)));
+        }
     }
     if (TakeButton) TakeButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && bSelectedFromContainer);
     if (PutButton) PutButton->SetIsEnabled(IsValid(LootContainer) && !SelectedId.IsNone() && !bSelectedFromContainer);
