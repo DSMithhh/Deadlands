@@ -6,3 +6,31 @@ ADeadlandsGameMode::ADeadlandsGameMode()
 {
 	// stub
 }
+
+#include "Interaction/DeadlandsContainer.h"
+#include "Persistence/DeadlandsWorldPersistence.h"
+#include "Engine/World.h"
+
+void ADeadlandsGameMode::BeginPlay()
+{
+    Super::BeginPlay();
+    if (!HasAuthority() || !GetWorld()) return;
+    const TMap<FString, FVector> SavedBags = FDeadlandsWorldPersistence::LoadCorpseBags(this);
+    for (const auto& Entry : SavedBags)
+    {
+        TArray<FDeadlandsItemStack> Remaining;
+        const FString InventoryKey = TEXT("Container|") + Entry.Key;
+        if (!FDeadlandsWorldPersistence::LoadInventory(this, InventoryKey, Remaining) || Remaining.IsEmpty())
+        {
+            FDeadlandsWorldPersistence::UnregisterCorpseBag(this, Entry.Key);
+            continue;
+        }
+        const FTransform Transform(FRotator::ZeroRotator, Entry.Value);
+        ADeadlandsContainer* Bag = GetWorld()->SpawnActorDeferred<ADeadlandsContainer>(
+            ADeadlandsContainer::StaticClass(), Transform, nullptr, nullptr,
+            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if (!Bag) continue;
+        Bag->ConfigureCorpseLoot(FName(*Entry.Key), Remaining, true);
+        Bag->FinishSpawning(Transform);
+    }
+}
