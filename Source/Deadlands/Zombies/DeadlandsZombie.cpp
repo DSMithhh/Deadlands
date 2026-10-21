@@ -1,6 +1,8 @@
 #include "Zombies/DeadlandsZombie.h"
 #include "DeadlandsCharacter.h"
 #include "Interaction/DeadlandsContainer.h"
+#include "Building/DeadlandsBarricade.h"
+#include "Kismet/GameplayStatics.h"
 #include "Persistence/DeadlandsWorldPersistence.h"
 #include "AIController.h"
 #include "NavigationSystem.h"
@@ -326,6 +328,28 @@ void ADeadlandsZombie::Tick(float DeltaSeconds)
         return;
     }
 
+    // Fortifications obstructing the chase can be battered down by zombies.
+    if(Best && Target == Best && Now >= NextAttackTime && GetWorld())
+    {
+        const FVector Eye=GetActorLocation()+FVector(0.f,0.f,55.f);
+        const FVector TargetEye=Best->GetActorLocation()+FVector(0.f,0.f,55.f);
+        FHitResult BlockHit;
+        FCollisionQueryParams BlockParams(SCENE_QUERY_STAT(DeadlandsZombieBarricade),false,this);
+        if(GetWorld()->LineTraceSingleByChannel(BlockHit,Eye,TargetEye,ECC_Visibility,BlockParams))
+        {
+            if(ADeadlandsBarricade* Wall=Cast<ADeadlandsBarricade>(BlockHit.GetActor()))
+            {
+                if(FVector::Dist(GetActorLocation(),Wall->GetActorLocation())<190.f)
+                {
+                    UGameplayStatics::ApplyDamage(Wall,AttackDamage,nullptr,this,nullptr);
+                    NextAttackTime=Now+AttackCooldown;
+                    SetZombieState(EDeadlandsZombieState::Attacking);
+                    if(AI)AI->StopMovement();
+                    return;
+                }
+            }
+        }
+    }
     SetZombieState(Best == Target ? EDeadlandsZombieState::Chasing : EDeadlandsZombieState::Suspicious);
     GetCharacterMovement()->MaxWalkSpeed = Best == Target ? WalkSpeed : WalkSpeed * 0.8f;
     NavigateTo(LastKnownLocation, 65.f, Now);
