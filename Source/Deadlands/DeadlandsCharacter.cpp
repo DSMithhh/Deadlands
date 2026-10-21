@@ -24,6 +24,7 @@
 #include "Interaction/DeadlandsInteractionPrompt.h"
 #include "Inventory/DeadlandsWorldPickup.h"
 #include "Building/DeadlandsBarricade.h"
+#include "Components/StaticMeshComponent.h"
 #include "Misc/Guid.h"
 #include "TimerManager.h"
 #include "Zombies/DeadlandsZombie.h"
@@ -88,6 +89,15 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ADeadlandsCharacter::EndSprint);
     PlayerInputComponent->BindKey(EKeys::L, IE_Pressed, this, &ADeadlandsCharacter::ToggleFlashlight);
     PlayerInputComponent->BindKey(EKeys::B, IE_Pressed, this, &ADeadlandsCharacter::PlaceBarricade);
+    PlayerInputComponent->BindKey(EKeys::One, IE_Pressed, this, &ADeadlandsCharacter::SelectBuildBarricade);
+    PlayerInputComponent->BindKey(EKeys::Two, IE_Pressed, this, &ADeadlandsCharacter::SelectBuildFoundation);
+    PlayerInputComponent->BindKey(EKeys::Three, IE_Pressed, this, &ADeadlandsCharacter::SelectBuildWall);
+    PlayerInputComponent->BindKey(EKeys::Four, IE_Pressed, this, &ADeadlandsCharacter::SelectBuildDoor);
+    PlayerInputComponent->BindKey(EKeys::Five, IE_Pressed, this, &ADeadlandsCharacter::SelectBuildStorage);
+    PlayerInputComponent->BindKey(EKeys::Q, IE_Pressed, this, &ADeadlandsCharacter::RotateBuildLeft);
+    PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ADeadlandsCharacter::RotateBuildRight);
+    PlayerInputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &ADeadlandsCharacter::ConfirmBuild);
+    PlayerInputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ADeadlandsCharacter::CancelBuild);
     PlayerInputComponent->BindKey(EKeys::X, IE_Pressed, this, &ADeadlandsCharacter::DismantleBarricade);
     PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &ADeadlandsCharacter::DebugDamage);
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
@@ -983,46 +993,100 @@ void ADeadlandsCharacter::ServerRepairTools_Implementation()
 
 void ADeadlandsCharacter::PlaceBarricade()
 {
- if(IsLocallyControlled())ServerPlaceBarricade();
+ if(!IsLocallyControlled())return;
+ bBuildMode=!bBuildMode;
+ RefreshBuildPreview();
 }
-void ADeadlandsCharacter::ServerPlaceBarricade_Implementation()
+void ADeadlandsCharacter::SelectBuildBarricade(){if(bBuildMode){SelectedBuildType=0;RefreshBuildPreview();}}
+void ADeadlandsCharacter::SelectBuildFoundation(){if(bBuildMode){SelectedBuildType=1;RefreshBuildPreview();}}
+void ADeadlandsCharacter::SelectBuildWall(){if(bBuildMode){SelectedBuildType=2;RefreshBuildPreview();}}
+void ADeadlandsCharacter::SelectBuildDoor(){if(bBuildMode){SelectedBuildType=3;RefreshBuildPreview();}}
+void ADeadlandsCharacter::SelectBuildStorage(){if(bBuildMode){SelectedBuildType=4;RefreshBuildPreview();}}
+void ADeadlandsCharacter::RotateBuildLeft(){if(bBuildMode)BuildRotationOffset-=15.f;}
+void ADeadlandsCharacter::RotateBuildRight(){if(bBuildMode)BuildRotationOffset+=15.f;}
+void ADeadlandsCharacter::ConfirmBuild()
 {
- if(bIsDead||!GetWorld()||!EnsureItemInventory())return;
- TArray<FDeadlandsItemStack> Updated=Items;
- for(int32 i=0;i<3;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Materials")))return;
- for(int32 i=0;i<2;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Scrap")))return;
- const FVector Eye=GetPawnViewLocation();
+ if(bBuildMode&&IsLocallyControlled())ServerPlaceBarricade(SelectedBuildType,BuildRotationOffset);
+}
+void ADeadlandsCharacter::CancelBuild()
+{
+ bBuildMode=false;
+ if(BuildPreview)BuildPreview->SetVisibility(false);
+}
+bool ADeadlandsCharacter::ComputeBuildTransform(uint8 Type,float RotationOffset,FTransform& OutTransform) const
+{
+ if(!GetWorld()||Type>4)return false;
  const FVector Direction=GetBaseAimRotation().Vector();
- FHitResult Hit;
- FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsBuildPlacement),false,this);
- // Building requires an unobstructed view of the intended ground placement area.
- // Place on ground in front of the player, not inside the surface being aimed at.
- const FVector Candidate=GetActorLocation()+FVector(Direction.X,Direction.Y,0.f).GetSafeNormal()*210.f;
+ const FVector FlatDirection=FVector(Direction.X,Direction.Y,0.f).GetSafeNormal();
+ if(FlatDirection.IsNearlyZero())return false;
+ const FVector Candidate=GetActorLocation()+FlatDirection*260.f;
  FHitResult Ground;
  FCollisionQueryParams GroundParams(SCENE_QUERY_STAT(DeadlandsBuildGround),false,this);
- if(!GetWorld()->LineTraceSingleByChannel(Ground,Candidate+FVector(0.f,0.f,150.f),Candidate-FVector(0.f,0.f,240.f),ECC_Visibility,GroundParams))return;
- if(Ground.ImpactNormal.Z<0.65f)return;
+ if(!GetWorld()->LineTraceSingleByChannel(Ground,Candidate+FVector(0.f,0.f,160.f),Candidate-FVector(0.f,0.f,260.f),ECC_Visibility,GroundParams))return false;
+ if(Ground.ImpactNormal.Z<0.70f)return false;
+ const FVector Eye=GetPawnViewLocation();
  FHitResult Sight;
  FCollisionQueryParams SightParams(SCENE_QUERY_STAT(DeadlandsBuildSight),false,this);
- if(GetWorld()->LineTraceSingleByChannel(Sight,Eye,Ground.ImpactPoint+FVector(0.f,0.f,70.f),ECC_Visibility,SightParams))return;
- const FRotator Rotation(0.f,GetBaseAimRotation().Yaw,0.f);
- const FVector Location=Ground.ImpactPoint+FVector(0.f,0.f,75.f);
- const FCollisionShape Shape=FCollisionShape::MakeBox(FVector(14.f,104.f,70.f));
- FCollisionQueryParams BlockParams(SCENE_QUERY_STAT(DeadlandsBuildObstruction),false,this);
- if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldStatic,Shape,BlockParams))return;
- if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldDynamic,Shape,BlockParams))return;
- const FTransform Transform(Rotation,Location);
+ if(GetWorld()->LineTraceSingleByChannel(Sight,Eye,Ground.ImpactPoint+FVector(0.f,0.f,60.f),ECC_Visibility,SightParams))return false;
+ const FRotator Rotation(0.f,GetBaseAimRotation().Yaw+RotationOffset,0.f);
+ const float Height=Type==1?9.f:Type==2?115.f:Type==3?110.f:Type==4?35.f:75.f;
+ const FVector Location=Ground.ImpactPoint+FVector(0.f,0.f,Height);
+ const FVector Extent=Type==1?FVector(105.f,105.f,9.f):Type==2?FVector(9.f,105.f,110.f):
+  Type==3?FVector(8.f,52.f,105.f):Type==4?FVector(47.f,35.f,35.f):FVector(9.f,100.f,70.f);
+ const FCollisionShape Shape=FCollisionShape::MakeBox(Extent);
+ FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsBuildObstruction),false,this);
+ if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldStatic,Shape,Params))return false;
+ if(GetWorld()->OverlapBlockingTestByChannel(Location,Rotation.Quaternion(),ECC_WorldDynamic,Shape,Params))return false;
+ OutTransform=FTransform(Rotation,Location);
+ return true;
+}
+void ADeadlandsCharacter::RefreshBuildPreview()
+{
+ if(!IsLocallyControlled())return;
+ if(!BuildPreview)
+ {
+  BuildPreview=NewObject<UStaticMeshComponent>(this,TEXT("DeadlandsConstructionPreview"));
+  if(!BuildPreview)return;
+  BuildPreview->SetupAttachment(GetRootComponent());
+  BuildPreview->RegisterComponent();
+  BuildPreview->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+  BuildPreview->SetCastShadow(false);
+  BuildPreview->SetMobility(EComponentMobility::Movable);
+  BuildPreview->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
+  BuildPreview->SetRenderCustomDepth(true);
+ }
+ BuildPreview->SetVisibility(bBuildMode);
+ if(!bBuildMode)return;
+ const FVector Scale=SelectedBuildType==1?FVector(2.2f,2.2f,.18f):
+  SelectedBuildType==2?FVector(.18f,2.2f,2.3f):SelectedBuildType==3?FVector(.16f,1.05f,2.2f):
+  SelectedBuildType==4?FVector(.95f,.7f,.7f):FVector(.18f,2.1f,1.45f);
+ BuildPreview->SetWorldScale3D(Scale);
+ FTransform Placement;
+ const bool bValid=ComputeBuildTransform(SelectedBuildType,BuildRotationOffset,Placement);
+ BuildPreview->SetVisibility(bValid);
+ if(bValid)BuildPreview->SetWorldTransform(Placement);
+}
+void ADeadlandsCharacter::ServerPlaceBarricade_Implementation(uint8 Type,float RotationOffset)
+{
+ if(bIsDead||!GetWorld()||!EnsureItemInventory()||Type>4||!FMath::IsFinite(RotationOffset))return;
+ FTransform Transform;
+ if(!ComputeBuildTransform(Type,RotationOffset))return;
+ const int32 MaterialCost=Type==1?4:Type==2?3:Type==3?3:Type==4?2:3;
+ const int32 ScrapCost=Type==3?3:Type==4?2:Type==1?1:2;
+ TArray<FDeadlandsItemStack> Updated=Items;
+ for(int32 i=0;i<MaterialCost;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Materials")))return;
+ for(int32 i=0;i<ScrapCost;++i)if(!FDeadlandsItems::RemoveOne(Updated,TEXT("Scrap")))return;
  const FString Id=FGuid::NewGuid().ToString();
- if(!FDeadlandsWorldPersistence::SaveBarricade(this,Id,Transform,200.f))return;
- ADeadlandsBarricade* Barricade=GetWorld()->SpawnActorDeferred<ADeadlandsBarricade>(
+ if(!FDeadlandsWorldPersistence::SaveBarricade(this,Id,Transform,200.f,Type,false))return;
+ ADeadlandsBarricade* Piece=GetWorld()->SpawnActorDeferred<ADeadlandsBarricade>(
   ADeadlandsBarricade::StaticClass(),Transform,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
- if(!Barricade){FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
+ if(!Piece){FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;}
  if(!FDeadlandsWorldPersistence::SaveInventory(this,GetInventorySaveKey(),Updated))
  {
-  Barricade->Destroy();FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;
+  Piece->Destroy();FDeadlandsWorldPersistence::RemoveBarricade(this,Id);return;
  }
- Barricade->InitializeSaved(Id,200.f);
- Barricade->FinishSpawning(Transform);
+ Piece->InitializeSaved(Id,200.f,static_cast<EDeadlandsBuildPiece>(Type),false);
+ Piece->FinishSpawning(Transform);
  Items=MoveTemp(Updated);NotifyItemsChanged();
 }
 void ADeadlandsCharacter::DismantleBarricade()
