@@ -269,9 +269,15 @@ void ADeadlandsCharacter::OnRep_Supplies()
 FString ADeadlandsCharacter::GetInventorySaveKey() const
 {
     const APlayerState* PS = GetPlayerState();
-    if (!PS || PS->GetPlayerId() < 0) return FString();
-    // Prototype only: PIE player IDs are not stable account identities.
-    return FString::Printf(TEXT("Player|%d"), PS->GetPlayerId());
+    if (!PS) return FString();
+    // Stable network identity when online; deterministic player name for PIE.
+    // PlayerState numeric IDs are session-scoped and change across restarts.
+    if (PS->GetUniqueId().IsValid())
+        return FString::Printf(TEXT("Player|Net|%s"), *PS->GetUniqueId()->ToString());
+    const FString Name = PS->GetPlayerName();
+    if (!Name.IsEmpty())
+        return FString::Printf(TEXT("Player|Name|%s"), *Name);
+    return FString();
 }
 
 bool ADeadlandsCharacter::EnsureItemInventory()
@@ -530,7 +536,11 @@ void ADeadlandsCharacter::OnRep_Health()
 void ADeadlandsCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    if (HasAuthority()) InitialSpawnTransform = GetActorTransform();
+    if (HasAuthority())
+    {
+        InitialSpawnTransform = GetActorTransform();
+        EnsureItemInventory(); // PlayerState may arrive later; Tick retries.
+    }
     if (FirstPersonCameraComponent)
     {
         StandingCameraRelativeLocation = FirstPersonCameraComponent->GetRelativeLocation();
@@ -549,6 +559,7 @@ void ADeadlandsCharacter::BeginPlay()
 void ADeadlandsCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    if (HasAuthority() && !bItemsLoaded) EnsureItemInventory();
     // The first-person camera is attached to the head mesh rather than the capsule.
     // Move it locally so crouch is visible even before crouch animations exist.
     if (IsLocallyControlled() && FirstPersonCameraComponent && bCameraBaseCaptured)
