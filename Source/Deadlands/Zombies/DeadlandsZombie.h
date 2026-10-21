@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interaction/DeadlandsInteractable.h"
 #include "DeadlandsZombie.generated.h"
 
 class UStaticMeshComponent;
 class ADeadlandsCharacter;
+class ADeadlandsContainer;
 
 UENUM(BlueprintType)
 enum class EDeadlandsZombieState : uint8
@@ -15,7 +17,7 @@ enum class EDeadlandsZombieState : uint8
 
 /** Simple server-driven zombie prototype. Place BP child actors in the level. */
 UCLASS()
-class DEADLANDS_API ADeadlandsZombie : public ACharacter
+class DEADLANDS_API ADeadlandsZombie : public ACharacter, public IDeadlandsInteractable
 {
     GENERATED_BODY()
 public:
@@ -24,6 +26,9 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
     void ReceiveMeleeDamage(float Amount, bool bHeadshot = false, bool bHeavy = false);
+    virtual bool CanInteract_Implementation(ACharacter* InteractingCharacter) const override;
+    virtual void Interact_Implementation(ACharacter* InteractingCharacter) override;
+    ADeadlandsContainer* GetCorpseLoot() const { return CorpseLoot; }
     void HearCombatNoise(const FVector& NoiseLocation);
     void AlertFromZombie(const FVector& AlertLocation);
 
@@ -104,6 +109,9 @@ private:
     TWeakObjectPtr<ADeadlandsCharacter> WindupTarget;
     float NextAlertTime = 0.f;
     float CorpseDestroyDelay = 45.f;
+    UPROPERTY(Replicated) TObjectPtr<ADeadlandsContainer> CorpseLoot;
+    bool bLootBagRevealed = false;
+    void CreateCorpseLoot();
     float StaggerDuration = 0.65f;
     float AttackWindupSeconds = 0.55f;
     float KnockbackStrength = 350.f;
