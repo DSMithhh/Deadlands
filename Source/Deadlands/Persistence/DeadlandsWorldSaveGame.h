@@ -25,4 +25,10 @@ public:
 
     UPROPERTY()
     TMap<FString, FDeadlandsItemInventory> SavedInventories;
+
+    /** Pack 26: player equipment and condition, keyed by persistent player ID. */
+    UPROPERTY() TMap<FString, bool> EquippedBackpacks;
+    UPROPERTY() TMap<FString, float> BleedingLevels;
+    UPROPERTY() TMap<FString, float> InfectionLevels;
+    UPROPERTY() TMap<FString, int32> ToolDurability;
 };
