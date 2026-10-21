@@ -195,7 +195,10 @@ bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Characte
     if (bAny)
     {
         if (bCorpseBag && Items.IsEmpty())
-            FDeadlandsWorldPersistence::SaveActorFlag(this, GetPersistenceKey(), TEXT("Depleted"), true);
+        {
+            FDeadlandsWorldPersistence::UnregisterCorpseBag(this, GetPersistenceKey());
+            SetLifeSpan(12.f);
+        }
         OnContainerItemsChanged();
         Character->NotifyItemsChanged();
         ForceNetUpdate();
