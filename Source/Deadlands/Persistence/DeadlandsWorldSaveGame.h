@@ -5,6 +5,14 @@
 #include "Inventory/DeadlandsItemStack.h"
 #include "DeadlandsWorldSaveGame.generated.h"
 
+USTRUCT()
+struct FDeadlandsSavedBarricade
+{
+ GENERATED_BODY()
+ UPROPERTY() FTransform Transform=FTransform::Identity;
+ UPROPERTY() float Health=200.f;
+};
+
 /** Server-owned world state. New persistent actor types can add additional maps. */
 UCLASS()
 class DEADLANDS_API UDeadlandsWorldSaveGame : public USaveGame
