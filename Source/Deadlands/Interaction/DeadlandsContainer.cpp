@@ -16,6 +16,16 @@ ADeadlandsContainer::ADeadlandsContainer()
     if (Cube.Succeeded()) ContainerMesh->SetStaticMesh(Cube.Object);
 }
 
+void ADeadlandsContainer::ConfigureBuiltStorage(FName StableId)
+{
+ PersistenceId=StableId;
+ bBuiltStorage=true;
+ bGenerateLoot=false;
+ bOpen=true;
+ InitialSupplies=0;
+ InitialItems.Empty();
+ ContainerMesh->SetRelativeScale3D(FVector(.95f,.7f,.7f));
+}
 void ADeadlandsContainer::ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile)
 {
     PersistenceId = StableId;
@@ -95,6 +105,7 @@ void ADeadlandsContainer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME(ADeadlandsContainer, Items);
     DOREPLIFETIME(ADeadlandsContainer, bBagVisible);
     DOREPLIFETIME(ADeadlandsContainer, bCorpseBag);
+    DOREPLIFETIME(ADeadlandsContainer, bBuiltStorage);
 }
 
 bool ADeadlandsContainer::CanInteract_Implementation(ACharacter* InteractingCharacter) const
