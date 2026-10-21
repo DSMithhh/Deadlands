@@ -25,6 +25,32 @@ void ADeadlandsContainer::ConfigureLoot(FName StableId, EDeadlandsLootProfile Pr
     ContainerMesh->SetRelativeScale3D(FVector(1.1f, 0.65f, 0.85f));
 }
 
+void ADeadlandsContainer::ConfigureCorpseLoot(FName StableId, const TArray<FDeadlandsItemStack>& Loot, bool bAsBag)
+{
+    PersistenceId = StableId;
+    bCorpseBag = true;
+    bBagVisible = bAsBag;
+    bOpen = true;
+    bGenerateLoot = false;
+    InitialSupplies = 0;
+    InitialItems = Loot;
+    ContainerMesh->SetRelativeScale3D(FVector(0.38f, 0.32f, 0.18f));
+    ApplyBagAppearance();
+}
+void ADeadlandsContainer::RevealCorpseBag()
+{
+    if (!HasAuthority() || !bCorpseBag) return;
+    bBagVisible = true;
+    ApplyBagAppearance();
+    ForceNetUpdate();
+}
+void ADeadlandsContainer::OnRep_BagVisibility() { ApplyBagAppearance(); }
+void ADeadlandsContainer::ApplyBagAppearance()
+{
+    if (!ContainerMesh) return;
+    ContainerMesh->SetVisibility(!bCorpseBag || bBagVisible, true);
+    ContainerMesh->SetCollisionEnabled(bCorpseBag && !bBagVisible ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryAndPhysics);
+}
 void ADeadlandsContainer::BeginPlay()
 {
     Super::BeginPlay();
@@ -56,6 +82,7 @@ void ADeadlandsContainer::BeginPlay()
         }
     }
     ApplyState();
+    ApplyBagAppearance();
     OnRemainingSuppliesChanged(RemainingSupplies);
     OnContainerItemsChanged();
 }
@@ -66,6 +93,8 @@ void ADeadlandsContainer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     DOREPLIFETIME(ADeadlandsContainer, bOpen);
     DOREPLIFETIME(ADeadlandsContainer, RemainingSupplies);
     DOREPLIFETIME(ADeadlandsContainer, Items);
+    DOREPLIFETIME(ADeadlandsContainer, bBagVisible);
+    DOREPLIFETIME(ADeadlandsContainer, bCorpseBag);
 }
 
 bool ADeadlandsContainer::CanInteract_Implementation(ACharacter* InteractingCharacter) const
@@ -77,6 +106,7 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
 {
     if (!HasAuthority() || !IsValid(InteractingCharacter)) return;
 
+    if (bCorpseBag) return;
     if (!bOpen)
     {
         bOpen = true;
@@ -164,6 +194,8 @@ bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Characte
     }
     if (bAny)
     {
+        if (bCorpseBag && Items.IsEmpty())
+            FDeadlandsWorldPersistence::SaveActorFlag(this, GetPersistenceKey(), TEXT("Depleted"), true);
         OnContainerItemsChanged();
         Character->NotifyItemsChanged();
         ForceNetUpdate();
