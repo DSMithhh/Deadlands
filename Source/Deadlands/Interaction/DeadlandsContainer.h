@@ -28,7 +28,8 @@ public:
     void ConfigureCorpseLoot(FName StableId, const TArray<FDeadlandsItemStack>& Loot, bool bAsBag);
     void RevealCorpseBag();
     bool IsCorpseBag() const { return bCorpseBag; }
-    bool HasLootRemaining() const { return !Items.IsEmpty(); }
+    bool HasLootRemaining() const { return FDeadlandsItems::Total(Items) > 0; }
+    bool ReorderSlots(int32 Source, int32 Destination);
     bool TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity);
     UFUNCTION(BlueprintPure, Category="Deadlands|Loot")
     TArray<FDeadlandsItemStack> GetItems() const { return Items; }
