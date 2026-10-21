@@ -550,4 +550,9 @@ void UDeadlandsInventoryWidget::PutFive()
     if (Survivor && LootContainer && !SelectedId.IsNone() && !bSelectedFromContainer)
         Survivor->RequestItemTransfer(LootContainer, SelectedId, false, 5);
 }
-\nvoid UDeadlandsInventoryWidget::ToggleCraftActions()\n{\n    if (CraftActions)\n        CraftActions->SetVisibility(CraftActions->GetVisibility() == ESlateVisibility::Collapsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);\n}\n
+
+void UDeadlandsInventoryWidget::ToggleCraftActions()
+{
+    if (CraftActions)
+        CraftActions->SetVisibility(CraftActions->GetVisibility() == ESlateVisibility::Collapsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+}
