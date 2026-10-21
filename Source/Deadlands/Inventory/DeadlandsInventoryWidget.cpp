@@ -184,7 +184,7 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
         return Action;
     };
     UHorizontalBox* EquipmentActions = WidgetTree->ConstructWidget<UHorizontalBox>();
-    Column->InsertChildAt(4, EquipmentActions);
+    Column->AddChildToVerticalBox(EquipmentActions);
     auto AddEquipmentAction = [&](const TCHAR* Title)
     {
         UButton* Action = WidgetTree->ConstructWidget<UButton>();
