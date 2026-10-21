@@ -456,6 +456,17 @@ void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
     const float Now = GetWorld()->GetTimeSeconds();
     if (Now - LastMeleeTime < MeleeCooldown) return;
     LastMeleeTime = Now;
+    if (EnsureItemInventory())
+    {
+        bool HasTool = false;
+        for (const auto& Stack : Items)
+            if (Stack.ItemId == TEXT("Tools") && Stack.Quantity > 0) HasTool = true;
+        if (HasTool && ToolCondition > 0)
+        {
+            --ToolCondition;
+            FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
+        }
+    }
 
     // Server chooses the hit target; clients cannot supply a victim or damage amount.
     const FVector Start = GetPawnViewLocation();
@@ -668,19 +679,21 @@ void ADeadlandsCharacter::ToggleCrouch()
 }
 void ADeadlandsCharacter::RequestConsumeItem(FName ItemId)
 {
-    if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water") || ItemId == TEXT("Medicine")))
+    if (IsLocallyControlled() && (ItemId == TEXT("Food") || ItemId == TEXT("Water") || ItemId == TEXT("Medicine") || ItemId == TEXT("Bandage") || ItemId == TEXT("Antibiotics")))
         ServerConsumeItem(ItemId);
 }
 void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
 {
     if (bIsDead || !Vitals || !EnsureItemInventory()) return;
-    if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine")) return;
+    if (ItemId != TEXT("Food") && ItemId != TEXT("Water") && ItemId != TEXT("Medicine") && ItemId != TEXT("Bandage") && ItemId != TEXT("Antibiotics")) return;
     TArray<FDeadlandsItemStack> NewItems = Items;
     if (!FDeadlandsItems::RemoveOne(NewItems, ItemId)) return;
     // Only consume when the corresponding vital needs replenishment.
     if ((ItemId == TEXT("Food") && Vitals->GetHunger() >= 100.f) ||
         (ItemId == TEXT("Water") && Vitals->GetThirst() >= 100.f) ||
-        (ItemId == TEXT("Medicine") && Health >= MaxHealth)) return;
+        (ItemId == TEXT("Medicine") && Health >= MaxHealth) ||
+        (ItemId == TEXT("Bandage") && Bleeding <= 0.f) ||
+        (ItemId == TEXT("Antibiotics") && Infection <= 0.f)) return;
     if (!FDeadlandsWorldPersistence::SaveInventory(this, GetInventorySaveKey(), NewItems)) return;
     Items = MoveTemp(NewItems);
     if (ItemId == TEXT("Medicine"))
@@ -688,7 +701,10 @@ void ADeadlandsCharacter::ServerConsumeItem_Implementation(FName ItemId)
         Health = FMath::Min(MaxHealth, Health + 40.f);
         OnRep_Health();
     }
+    else if (ItemId == TEXT("Bandage")) Bleeding = FMath::Max(0.f, Bleeding - 50.f);
+    else if (ItemId == TEXT("Antibiotics")) Infection = FMath::Max(0.f, Infection - 60.f);
     else Vitals->Consume(ItemId);
+    FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
     NotifyItemsChanged();
     ForceNetUpdate();
 }
