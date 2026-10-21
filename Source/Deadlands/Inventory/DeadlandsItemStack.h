@@ -32,7 +32,24 @@ struct FDeadlandsItems
         if (Id == TEXT("Medicine")) return 3;
         if (Id == TEXT("Tools")) return 1;
         if (Id == TEXT("Materials")) return 10;
+        if (Id == TEXT("Bandage") || Id == TEXT("Antibiotics")) return 5;
+        if (Id == TEXT("Ammo9mm") || Id == TEXT("Ammo12g")) return 30;
+        if (Id == TEXT("Scrap") || Id == TEXT("Cloth")) return 20;
+        if (Id == TEXT("Backpack") || Id == TEXT("Pistol")) return 1;
         return 0;
+    }
+    // Whole-unit weights keep the existing save format and server transfer logic.
+    static int32 Weight(FName Id)
+    {
+        if (Id == TEXT("Tools") || Id == TEXT("Backpack")) return 4;
+        if (Id == TEXT("Materials") || Id == TEXT("Scrap") || Id == TEXT("Pistol")) return 2;
+        return 1;
+    }
+    static const TCHAR* Rarity(FName Id)
+    {
+        if (Id == TEXT("Pistol") || Id == TEXT("Antibiotics")) return TEXT("RARE");
+        if (Id == TEXT("Backpack") || Id == TEXT("Medicine")) return TEXT("UNCOMMON");
+        return TEXT("COMMON");
     }
     static bool Valid(const FDeadlandsItemStack& Stack)
     {
@@ -44,10 +61,17 @@ struct FDeadlandsItems
         for (const auto& Stack : Stacks) Count += Stack.Quantity;
         return Count;
     }
+    static int32 TotalWeight(const TArray<FDeadlandsItemStack>& Stacks)
+    {
+        int32 Sum = 0;
+        for (const auto& Stack : Stacks)
+            Sum += Stack.Quantity * Weight(Stack.ItemId);
+        return Sum;
+    }
     static bool AddOne(TArray<FDeadlandsItemStack>& Stacks, FName Id, int32 Capacity)
     {
         const int32 Max = MaxStack(Id);
-        if (!Max || Total(Stacks) >= Capacity) return false;
+        if (!Max || Capacity < Weight(Id) || TotalWeight(Stacks) > Capacity - Weight(Id)) return false;
         for (auto& Stack : Stacks)
             if (Stack.ItemId == Id && Stack.Quantity < Max) { ++Stack.Quantity; return true; }
         FDeadlandsItemStack NewStack;
