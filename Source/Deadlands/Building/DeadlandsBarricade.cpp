@@ -30,6 +30,17 @@ void ADeadlandsBarricade::SetPieceType(EDeadlandsBuildPiece NewType,bool bOpen)
  else if(PieceType==EDeadlandsBuildPiece::Door)Scale=FVector(.16f,1.05f,2.2f);
  else if(PieceType==EDeadlandsBuildPiece::Storage)Scale=FVector(.95f,.7f,.7f);
  Mesh->SetRelativeScale3D(Scale);
+ // Pivot the panel about one edge when opened; retain a visible, targetable door.
+ if(PieceType==EDeadlandsBuildPiece::Door)
+ {
+  Mesh->SetRelativeRotation(FRotator(0.f,bDoorOpen?90.f:0.f,0.f));
+  Mesh->SetRelativeLocation(bDoorOpen?FVector(-52.f,-52.f,0.f):FVector::ZeroVector);
+ }
+ else
+ {
+  Mesh->SetRelativeRotation(FRotator::ZeroRotator);
+  Mesh->SetRelativeLocation(FVector::ZeroVector);
+ }
  Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
  Mesh->SetCollisionResponseToChannel(ECC_Pawn,PieceType==EDeadlandsBuildPiece::Door&&bDoorOpen?ECR_Ignore:ECR_Block);
 }
