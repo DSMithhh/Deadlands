@@ -48,7 +48,9 @@ void UDeadlandsInventoryWidget::NativeOnInitialized()
     PlayerList = MakeText(TEXT("PLAYER"));
     ContainerList = MakeText(TEXT("CONTAINER"));
     ItemPicker = WidgetTree->ConstructWidget<UComboBoxString>();
-    for (const TCHAR* Id : { TEXT("Food"), TEXT("Water"), TEXT("Medicine"), TEXT("Tools"), TEXT("Materials") })
+    for (const TCHAR* Id : { TEXT("Food"), TEXT("Water"), TEXT("Medicine"), TEXT("Tools"), TEXT("Materials"), TEXT("Bandage"), TEXT("Antibiotics"),
+                              TEXT("Ammo9mm"), TEXT("Ammo12g"), TEXT("Scrap"),
+                              TEXT("Cloth"), TEXT("Backpack"), TEXT("Pistol") })
         ItemPicker->AddOption(FString(Id));
     ItemPicker->SetSelectedOption(TEXT("Food"));
     Column->AddChildToVerticalBox(ItemPicker);
@@ -116,8 +118,8 @@ void UDeadlandsInventoryWidget::Refresh()
         return Result;
     };
     if (Survivor)
-        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("YOUR ITEMS (%d/%d):%s"),
-            FDeadlandsItems::Total(Survivor->GetItems()), Survivor->GetSupplyCapacity(), *Format(Survivor->GetItems()))));
+        PlayerList->SetText(FText::FromString(FString::Printf(TEXT("YOUR ITEMS (WEIGHT %d/%d):%s"),
+            FDeadlandsItems::TotalWeight(Survivor->GetItems()), Survivor->GetSupplyCapacity(), *Format(Survivor->GetItems()))));
     ContainerList->SetText(FText::FromString(LootContainer
         ? TEXT("CONTAINER:") + Format(LootContainer->GetItems())
         : TEXT("CONTAINER: (look at a container and press F)")));
