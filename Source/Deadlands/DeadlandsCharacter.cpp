@@ -441,7 +441,15 @@ void ADeadlandsCharacter::DebugHeal()
 
 void ADeadlandsCharacter::ApplyCombatDamage(float Amount)
 {
+    if (!HasAuthority() || bIsDead || Amount <= 0.f) return;
     ApplySurvivalDamage(Amount);
+    if (EnsureItemInventory())
+    {
+        Bleeding = FMath::Min(100.f, Bleeding + Amount * 0.35f);
+        if (FMath::FRand() < 0.15f)
+            Infection = FMath::Min(100.f, Infection + 20.f);
+        FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
+    }
 }
 
 void ADeadlandsCharacter::TryMeleeAttack()
@@ -481,11 +489,6 @@ void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
     const bool bPlayerHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
     const bool bZombieHit = IsValid(Zombie) && Zombie->GetZombieHealth() > 0.f;
     if (bPlayerHit) Victim->ApplyCombatDamage(MeleeDamage);
-    if (bPlayerHit && Victim->EnsureItemInventory())
-    {
-        Victim->Bleeding = FMath::Min(100.f, Victim->Bleeding + 15.f);
-        FDeadlandsWorldPersistence::SaveSurvivalState(Victim, Victim->GetInventorySaveKey(), Victim->bBackpackEquipped, Victim->Bleeding, Victim->Infection, Victim->ToolCondition);
-    }
     if (bZombieHit) Zombie->ReceiveMeleeDamage(MeleeDamage);
     // Melee combat draws the attention of nearby unengaged infected.
     for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
