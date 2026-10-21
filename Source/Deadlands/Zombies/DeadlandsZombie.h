@@ -36,6 +36,15 @@ public:
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Deadlands|Zombie")
     TObjectPtr<UStaticMeshComponent> PlaceholderBody;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> HeadVisual;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> LeftArmVisual;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> RightArmVisual;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> LeftLegVisual;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> RightLegVisual;
+    UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> FaceVisual;
+    void UpdateZombieVisual(float DeltaSeconds);
+    float VisualTime = 0.f;
+    float DeathBlend = 0.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Deadlands|Zombie")
     float DetectionRange = 1200.f;
