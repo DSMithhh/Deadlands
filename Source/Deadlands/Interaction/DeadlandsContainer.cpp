@@ -260,6 +260,8 @@ TArray<FDeadlandsItemStack> ADeadlandsContainer::GenerateInitialLoot() const
             LootProfile == EDeadlandsLootProfile::Medical ? FName(TEXT("Antibiotics")) : FName(TEXT("Backpack"));
         FDeadlandsItems::AddOne(Result, Bonus, 1000);
     }
+    if (LootProfile == EDeadlandsLootProfile::Garage && Random.FRand() < 0.08f)
+        FDeadlandsItems::AddOne(Result, TEXT("ArmorVest"), 1000);
     if (LootProfile == EDeadlandsLootProfile::Garage && Random.FRand() < 0.025f)
         FDeadlandsItems::AddOne(Result, TEXT("Pistol"), 1000);
     return Result;
