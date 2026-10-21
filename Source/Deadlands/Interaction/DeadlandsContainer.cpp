@@ -13,6 +13,15 @@ ADeadlandsContainer::ADeadlandsContainer()
     ContainerMesh->SetCollisionProfileName(TEXT("BlockAll"));
 }
 
+void ADeadlandsContainer::ConfigureLoot(FName StableId, EDeadlandsLootProfile Profile)
+{
+    PersistenceId = StableId;
+    LootProfile = Profile;
+    bGenerateLoot = true;
+    InitialSupplies = 0;
+    ContainerMesh->SetRelativeScale3D(FVector(1.1f, 0.65f, 0.85f));
+}
+
 void ADeadlandsContainer::BeginPlay()
 {
     Super::BeginPlay();
@@ -75,7 +84,7 @@ void ADeadlandsContainer::Interact_Implementation(ACharacter* InteractingCharact
     }
 
     // Typed containers are managed by the inventory UI. F only opens them.
-    if (InitialItems.Num() > 0 || Items.Num() > 0) return;
+    if (bGenerateLoot || InitialItems.Num() > 0 || Items.Num() > 0) return;
 
     ADeadlandsCharacter* Survivor = Cast<ADeadlandsCharacter>(InteractingCharacter);
     // Legacy supplies still work for containers without typed items.
@@ -131,7 +140,7 @@ void ADeadlandsContainer::ApplyState()
 bool ADeadlandsContainer::TransferItemsToCharacter(ADeadlandsCharacter* Character, FName ItemId, bool bTake, int32 Quantity)
 {
     if (!HasAuthority() || !IsValid(Character) || !bOpen ||
-        Quantity < 1 || Quantity > 20 || FDeadlandsItems::MaxStack(ItemId) == 0 ||
+        Quantity < 1 || Quantity > 30 || FDeadlandsItems::MaxStack(ItemId) == 0 ||
         !Character->EnsureItemInventory()) return false;
 
     TArray<FDeadlandsItemStack>& PlayerItems = Character->GetMutableItems();
@@ -184,5 +193,14 @@ TArray<FDeadlandsItemStack> ADeadlandsContainer::GenerateInitialLoot() const
     const int32 Rolls = Random.RandRange(2, 6);
     for (int32 Index = 0; Index < Rolls; ++Index)
         FDeadlandsItems::AddOne(Result, Pool[Random.RandRange(0, Pool.Num() - 1)], 1000);
+    // Additional uncommon finds: deterministic per location and saved once.
+    if (Random.FRand() < 0.12f)
+    {
+        const FName Bonus = LootProfile == EDeadlandsLootProfile::Garage ? FName(TEXT("Ammo9mm")) :
+            LootProfile == EDeadlandsLootProfile::Medical ? FName(TEXT("Antibiotics")) : FName(TEXT("Backpack"));
+        FDeadlandsItems::AddOne(Result, Bonus, 1000);
+    }
+    if (LootProfile == EDeadlandsLootProfile::Garage && Random.FRand() < 0.025f)
+        FDeadlandsItems::AddOne(Result, TEXT("Pistol"), 1000);
     return Result;
 }
