@@ -89,6 +89,7 @@ void ADeadlandsCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
     PlayerInputComponent->BindKey(EKeys::J, IE_Pressed, this, &ADeadlandsCharacter::DebugHeal);
     PlayerInputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &ADeadlandsCharacter::ToggleCrouch);
     PlayerInputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ADeadlandsCharacter::TryMeleeAttack);
+    PlayerInputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ADeadlandsCharacter::TryHeavyMeleeAttack);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (InteractAction)
@@ -457,51 +458,82 @@ void ADeadlandsCharacter::TryMeleeAttack()
     if (!IsLocallyControlled() || bIsDead || (InventoryWidget && InventoryWidget->IsInViewport())) return;
     ServerMeleeAttack();
 }
-
+void ADeadlandsCharacter::TryHeavyMeleeAttack()
+{
+    if (!IsLocallyControlled() || bIsDead || (InventoryWidget && InventoryWidget->IsInViewport())) return;
+    ServerHeavyMeleeAttack();
+}
 void ADeadlandsCharacter::ServerMeleeAttack_Implementation()
+{
+    ExecuteMeleeAttack(false);
+}
+void ADeadlandsCharacter::ServerHeavyMeleeAttack_Implementation()
+{
+    ExecuteMeleeAttack(true);
+}
+void ADeadlandsCharacter::ExecuteMeleeAttack(bool bHeavy)
 {
     if (!HasAuthority() || bIsDead || !GetWorld()) return;
     const float Now = GetWorld()->GetTimeSeconds();
-    if (Now - LastMeleeTime < MeleeCooldown) return;
+    const float Cooldown = bHeavy ? 1.35f : MeleeCooldown;
+    if (Now - LastMeleeTime < Cooldown) return;
+    const float StaminaCost = bHeavy ? 28.f : 10.f;
+    if (Vitals && !Vitals->SpendStamina(StaminaCost))
+    {
+        ClientDetailedCombatFeedback(TEXT("NOT ENOUGH STAMINA"));
+        return;
+    }
     LastMeleeTime = Now;
+    bool bToolEquipped = false;
     if (EnsureItemInventory())
     {
-        bool HasTool = false;
         for (const auto& Stack : Items)
-            if (Stack.ItemId == TEXT("Tools") && Stack.Quantity > 0) HasTool = true;
-        if (HasTool && ToolCondition > 0)
+            if (Stack.ItemId == TEXT("Tools") && Stack.Quantity > 0 && ToolCondition > 0)
+                bToolEquipped = true;
+        if (bToolEquipped)
         {
-            --ToolCondition;
+            ToolCondition = FMath::Max(0, ToolCondition - (bHeavy ? 3 : 1));
             FDeadlandsWorldPersistence::SaveSurvivalState(this, GetInventorySaveKey(), bBackpackEquipped, Bleeding, Infection, ToolCondition);
         }
     }
-
-    // Server chooses the hit target; clients cannot supply a victim or damage amount.
+    const float Damage = (bHeavy ? 38.f : MeleeDamage) * (bToolEquipped ? 1.25f : 1.f);
     const FVector Start = GetPawnViewLocation();
     const FVector Direction = GetController() ? GetController()->GetControlRotation().Vector() : GetActorForwardVector();
-    const FVector End = Start + Direction * MeleeRange;
+    const FVector End = Start + Direction * (bHeavy ? MeleeRange + 30.f : MeleeRange);
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsMelee), false, this);
     const bool bHit = GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
-        ECC_Pawn, FCollisionShape::MakeSphere(24.f), Params);
+        ECC_Pawn, FCollisionShape::MakeSphere(bHeavy ? 32.f : 24.f), Params);
     ADeadlandsCharacter* Victim = bHit ? Cast<ADeadlandsCharacter>(Hit.GetActor()) : nullptr;
     ADeadlandsZombie* Zombie = bHit ? Cast<ADeadlandsZombie>(Hit.GetActor()) : nullptr;
     const bool bPlayerHit = IsValid(Victim) && Victim != this && !Victim->bIsDead && bAllowFriendlyFire;
     const bool bZombieHit = IsValid(Zombie) && Zombie->GetZombieHealth() > 0.f;
-    if (bPlayerHit) Victim->ApplyCombatDamage(MeleeDamage);
-    if (bZombieHit) Zombie->ReceiveMeleeDamage(MeleeDamage);
-    // Melee combat draws the attention of nearby unengaged infected.
-    for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+    bool bHeadshot = false;
+    if (bZombieHit)
     {
-        if (IsValid(*It)) (*It)->HearCombatNoise(GetActorLocation());
+        const float HeightAboveFeet = Hit.ImpactPoint.Z - (Zombie->GetActorLocation().Z - Zombie->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+        bHeadshot = HeightAboveFeet >= 140.f;
+        Zombie->ReceiveMeleeDamage(Damage, bHeadshot, bHeavy);
     }
-    ClientCombatFeedback(bPlayerHit || bZombieHit);
+    if (bPlayerHit) Victim->ApplyCombatDamage(Damage);
+    for (TActorIterator<ADeadlandsZombie> It(GetWorld()); It; ++It)
+        if (IsValid(*It)) (*It)->HearCombatNoise(GetActorLocation());
+    if (bZombieHit)
+        ClientDetailedCombatFeedback(FString::Printf(TEXT("%s%s  -%.0f"), bHeadshot ? TEXT("HEADSHOT!  ") : TEXT("HIT  "), bHeavy ? TEXT("HEAVY") : TEXT("LIGHT"), Damage * (bHeadshot ? 2.5f : 1.f)));
+    else if (bPlayerHit)
+        ClientDetailedCombatFeedback(FString::Printf(TEXT("PLAYER HIT  -%.0f"), Damage));
+    else
+        ClientDetailedCombatFeedback(bHeavy ? TEXT("HEAVY SWING - MISS") : TEXT("LIGHT SWING - MISS"));
 }
-
 void ADeadlandsCharacter::ClientCombatFeedback_Implementation(bool bHit)
 {
-    CombatFeedback = bHit ? TEXT("MELEE HIT +20") : TEXT("MELEE MISS");
+    CombatFeedback = bHit ? TEXT("MELEE HIT") : TEXT("MELEE MISS");
     CombatFeedbackUntil = GetWorld() ? GetWorld()->GetTimeSeconds() + 0.8f : 0.f;
+}
+void ADeadlandsCharacter::ClientDetailedCombatFeedback_Implementation(const FString& Message)
+{
+    CombatFeedback = Message;
+    CombatFeedbackUntil = GetWorld() ? GetWorld()->GetTimeSeconds() + 1.2f : 0.f;
 }
 
 void ADeadlandsCharacter::ApplySurvivalDamage(float Amount)
