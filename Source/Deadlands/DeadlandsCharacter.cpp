@@ -1116,4 +1116,13 @@ void ADeadlandsCharacter::ServerDismantleBarricade_Implementation()
  if(!GetWorld()->LineTraceSingleByChannel(Hit,Eye,Eye+GetBaseAimRotation().Vector()*260.f,ECC_Visibility,Params))return;
  if(ADeadlandsBarricade* Barricade=Cast<ADeadlandsBarricade>(Hit.GetActor()))
   Barricade->Dismantle(this);
+ else if(ADeadlandsContainer* Storage=Cast<ADeadlandsContainer>(Hit.GetActor()))
+ {
+  if(!Storage->IsBuiltStorage()||Storage->HasLootRemaining()||!EnsureItemInventory())return;
+  TArray<FDeadlandsItemStack> Updated=Items;
+  if(!FDeadlandsItems::AddOne(Updated,TEXT("Materials"),GetSupplyCapacity()))return;
+  if(!FDeadlandsWorldPersistence::SaveInventory(this,GetInventorySaveKey(),Updated))return;
+  if(!FDeadlandsWorldPersistence::RemoveBarricade(this,Storage->GetBuiltStorageId()))return;
+  Items=MoveTemp(Updated);NotifyItemsChanged();Storage->Destroy();
+ }
 }
