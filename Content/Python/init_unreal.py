@@ -1,21 +1,20 @@
-"""Pack 16 one-time map generation on Unreal Editor startup.
-
-Unreal's Python Editor Script Plugin automatically loads Content/Python/init_unreal.py.
-Never overwrite a previously generated or manually edited level.
-"""
+"""Deadlands Pack 16: create town once, then repair missing daylight automatically."""
+import os
+import traceback
 import unreal
 
 TARGET = "/Game/Maps/L_DeadlandsTown"
+FOLDER = os.path.dirname(__file__)
 
-if unreal.EditorAssetLibrary.does_asset_exist(TARGET):
-    unreal.log("Deadlands Pack 16: saved town already exists; startup builder skipped.")
-else:
-    try:
-        import os
-        import traceback
-        script_path = os.path.join(os.path.dirname(__file__), "build_deadlands_town.py")
-        with open(script_path, "r", encoding="utf-8") as source:
-            exec(compile(source.read(), script_path, "exec"), {"__name__": "__main__"})
-        unreal.log("Deadlands Pack 16: town generated. Open /Game/Maps/L_DeadlandsTown.")
-    except Exception:
-        unreal.log_error("Deadlands Pack 16 map builder failed:\n" + traceback.format_exc())
+def run_file(name):
+    path = os.path.join(FOLDER, name)
+    with open(path, "r", encoding="utf-8") as source:
+        exec(compile(source.read(), path, "exec"), {"__name__": "__main__"})
+
+try:
+    if not unreal.EditorAssetLibrary.does_asset_exist(TARGET):
+        run_file("build_deadlands_town.py")
+    # Safe to rerun: only adds missing atmosphere actors and tunes existing lighting.
+    run_file("repair_deadlands_lighting.py")
+except Exception:
+    unreal.log_error("Deadlands Pack 16 startup failed:\n" + traceback.format_exc())
