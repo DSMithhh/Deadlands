@@ -23,7 +23,7 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-    void ReceiveMeleeDamage(float Amount);
+    void ReceiveMeleeDamage(float Amount, bool bHeadshot = false, bool bHeavy = false);
     void HearCombatNoise(const FVector& NoiseLocation);
     void AlertFromZombie(const FVector& AlertLocation);
 
@@ -43,6 +43,10 @@ protected:
     UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> RightLegVisual;
     UPROPERTY(VisibleAnywhere, Category="Deadlands|Zombie Visual") TObjectPtr<UStaticMeshComponent> FaceVisual;
     void UpdateZombieVisual(float DeltaSeconds);
+    UPROPERTY(ReplicatedUsing=OnRep_HitReaction) uint8 HitReactionSerial = 0;
+    UFUNCTION() void OnRep_HitReaction();
+    float VisualStaggerRemaining = 0.f;
+    float LastHitDirection = 1.f;
     float VisualTime = 0.f;
     float DeathBlend = 0.f;
 
