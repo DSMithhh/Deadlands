@@ -12,4 +12,5 @@ public:
     UPROPERTY() bool bFromContainer = false;
     UPROPERTY() int32 SourceIndex = INDEX_NONE;
     UPROPERTY() bool bWholeStack = false;
+    UPROPERTY() bool bFromEquipment = false;
 };
