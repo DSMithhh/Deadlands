@@ -187,6 +187,14 @@ void ADeadlandsCharacter::TryInteract()
         AActor* Target = Hit.GetActor();
         if (IsValid(Target) && Target->GetClass()->ImplementsInterface(UDeadlandsInteractable::StaticClass()))
         {
+            if (ADeadlandsZombie* Corpse = Cast<ADeadlandsZombie>(Target))
+            {
+                if (Corpse->GetZombieHealth() <= 0.f && IsValid(Corpse->GetCorpseLoot()))
+                {
+                    ShowInventory(Corpse->GetCorpseLoot());
+                    return;
+                }
+            }
             if (ADeadlandsContainer* Container = Cast<ADeadlandsContainer>(Target))
             {
                 ShowInventory(Container);
@@ -366,8 +374,13 @@ void ADeadlandsCharacter::ServerTransferItems_Implementation(ADeadlandsContainer
     if (FVector::DistSquared(Eye, Bounds.GetClosestPointTo(Eye)) > FMath::Square(250.f)) return;
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(DeadlandsInventoryTransfer), false, this);
-    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Bounds.GetCenter(), ECC_Visibility, Params) ||
-        Hit.GetActor() != Container) return;
+    if (!GetWorld()->LineTraceSingleByChannel(Hit, Eye, Bounds.GetCenter(), ECC_Visibility, Params)) return;
+    if (Hit.GetActor() != Container)
+    {
+        const ADeadlandsZombie* Corpse = Cast<ADeadlandsZombie>(Hit.GetActor());
+        if (!Container->IsCorpseBag() || !Corpse || Corpse->GetCorpseLoot() != Container ||
+            Corpse->GetZombieHealth() > 0.f) return;
+    }
     Container->TransferItemsToCharacter(this, ItemId, bTake, Quantity);
 }
 
