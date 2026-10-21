@@ -8,6 +8,7 @@ class ADeadlandsContainer;
 class UTextBlock;
 class UComboBoxString;
 class UButton;
+class UUniformGridPanel;
 
 /** Minimal runtime-created inventory UI. No Blueprint widget asset required. */
 UCLASS()
@@ -30,7 +31,30 @@ private:
     UPROPERTY() TObjectPtr<UComboBoxString> ItemPicker;
     UPROPERTY() TObjectPtr<UButton> TakeButton;
     UPROPERTY() TObjectPtr<UButton> PutButton;
+    UPROPERTY() TObjectPtr<UUniformGridPanel> PlayerGrid;
+    UPROPERTY() TObjectPtr<UUniformGridPanel> LootGrid;
+    UPROPERTY() TObjectPtr<UTextBlock> ItemDetails;
+    FName SelectedId = NAME_None;
+    bool bSelectedFromContainer = false;
+    FString GridSignature;
     float RefreshCountdown = 0.f;
+    void SelectIndex(int32 Index);
+    UFUNCTION() void SelectSlot0();
+    UFUNCTION() void SelectSlot1();
+    UFUNCTION() void SelectSlot2();
+    UFUNCTION() void SelectSlot3();
+    UFUNCTION() void SelectSlot4();
+    UFUNCTION() void SelectSlot5();
+    UFUNCTION() void SelectSlot6();
+    UFUNCTION() void SelectSlot7();
+    UFUNCTION() void SelectSlot8();
+    UFUNCTION() void SelectSlot9();
+    UFUNCTION() void SelectSlot10();
+    UFUNCTION() void SelectSlot11();
+    UFUNCTION() void SelectSlot12();
+    UFUNCTION() void SelectSlot13();
+    UFUNCTION() void SelectSlot14();
+    UFUNCTION() void SelectSlot15();
     void Refresh();
     UFUNCTION() void TakeOne();
     UFUNCTION() void PutOne();
