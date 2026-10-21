@@ -76,6 +76,8 @@ private:
     void Refresh();
     UFUNCTION() void TakeOne();
     UFUNCTION() void PutOne();
+    UFUNCTION() void TakeFive();
+    UFUNCTION() void PutFive();
     UFUNCTION() void TakeStack();
     UFUNCTION() void PutStack();
     UFUNCTION() void ConsumeSelected();
