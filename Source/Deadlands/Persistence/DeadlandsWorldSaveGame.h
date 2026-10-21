@@ -41,4 +41,5 @@ public:
     UPROPERTY() TMap<FString, int32> ToolDurability;
     UPROPERTY() TMap<FString, FVector> CorpseBagLocations;
     UPROPERTY() TMap<FString, FDeadlandsItemInventory> SavedEquipment;
+    UPROPERTY() TMap<FString, FDeadlandsSavedBarricade> SavedBarricades;
 };
