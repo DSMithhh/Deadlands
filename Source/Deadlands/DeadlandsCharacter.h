@@ -65,6 +65,8 @@ public:
 
     /** Client entry point for inventory drag-and-drop reordering. */
     void RequestReorderItem(bool bContainer, ADeadlandsContainer* Container, int32 SourceIndex, int32 TargetIndex);
+    void PlaceBarricade();
+    void DismantleBarricade();
 
     /** Loads this player's item inventory on first use. Returns false if identity is not ready. */
     bool EnsureItemInventory();
@@ -230,6 +232,8 @@ protected:
     TObjectPtr<ADeadlandsContainer> CurrentContainer;
 
     void ToggleInventory();
+    UFUNCTION(Server,Reliable) void ServerPlaceBarricade();
+    UFUNCTION(Server,Reliable) void ServerDismantleBarricade();
     void ToggleCrouch();
     UFUNCTION(Server, Reliable) void ServerConsumeItem(FName ItemId);
     UFUNCTION(Server, Reliable) void ServerUseContainerItem(ADeadlandsContainer* Container, FName ItemId);
