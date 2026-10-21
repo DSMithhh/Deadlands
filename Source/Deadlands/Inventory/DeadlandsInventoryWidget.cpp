@@ -391,7 +391,11 @@ void UDeadlandsInventoryWidget::ConsumeSelected()
     if (Survivor && !SelectedId.IsNone())
     {
         if (bSelectedFromContainer && IsValid(LootContainer)) Survivor->RequestUseContainerItem(LootContainer, SelectedId);
-        else if (!bSelectedFromContainer) Survivor->RequestConsumeItem(SelectedId);
+        else if (!bSelectedFromContainer)
+        {
+            if (SelectedId == TEXT("Backpack")) Survivor->RequestEquipBackpack();
+            else Survivor->RequestConsumeItem(SelectedId);
+        }
     }
 }
 void UDeadlandsInventoryWidget::DropSelected()
@@ -504,7 +508,17 @@ void UDeadlandsInventoryWidget::SelectTile(bool bContainer, int32 Index)
  const TArray<FDeadlandsItemStack> Stacks=bContainer?(LootContainer?LootContainer->GetItems():TArray<FDeadlandsItemStack>()):Survivor->GetItems();
  SelectedId=Stacks.IsValidIndex(Index)?Stacks[Index].ItemId:NAME_None;
  bSelectedFromContainer=bContainer;
- GridSignature.Empty();
+ // Do not rebuild the tile grid during mouse-down: destroying the source widget
+ // cancels Slate's drag detection before the cursor can move.
+ auto HighlightGrid = [&](UUniformGridPanel* Grid, bool bGridContainer)
+ {
+  if (!Grid) return;
+  for (int32 TileIndex = 0; TileIndex < Grid->GetChildrenCount(); ++TileIndex)
+   if (UDeadlandsInventoryTile* Tile = Cast<UDeadlandsInventoryTile>(Grid->GetChildAt(TileIndex)))
+    Tile->SetSelected(TileIndex == Index && bGridContainer == bContainer && !SelectedId.IsNone());
+ };
+ HighlightGrid(PlayerGrid, false);
+ HighlightGrid(LootGrid, true);
  Refresh();
 }
 void UDeadlandsInventoryWidget::TransferTile(bool bContainer,FName ItemId,int32 Quantity)
