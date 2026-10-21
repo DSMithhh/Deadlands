@@ -3,6 +3,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Interaction/DeadlandsContainer.h"
+#include "Engine/World.h"
 
 ADeadlandsTownPrototype::ADeadlandsTownPrototype()
 {
@@ -191,6 +193,48 @@ ADeadlandsTownPrototype::ADeadlandsTownPrototype()
             FVector(X, Y, 165), FVector(45, 45, 330));
         AddBlock(FString::Printf(TEXT("TreeCrown_%d"), I),
             FVector(X, Y, 365), FVector(240, 240, 230));
+    }
+}
+
+
+void ADeadlandsTownPrototype::BeginPlay()
+{
+    Super::BeginPlay();
+    if (!HasAuthority() || !GetWorld()) return;
+
+    struct FLootSpot
+    {
+        const TCHAR* Id;
+        FVector LocalPosition;
+        EDeadlandsLootProfile Profile;
+    };
+    // Each location has a fixed save ID. The server owns all spawned containers.
+    // Spots are inside accessible buildings, away from door openings.
+    const FLootSpot Spots[] = {
+        {TEXT("HouseWest_Kitchen"), FVector(-2230, 1010, 55), EDeadlandsLootProfile::House},
+        {TEXT("HouseWest_Bedroom"), FVector(-1670, 1320, 55), EDeadlandsLootProfile::House},
+        {TEXT("HouseWest_Medicine"), FVector(-2220, 1360, 55), EDeadlandsLootProfile::Medical},
+        {TEXT("HouseEast_Kitchen"), FVector(1250, 980, 55), EDeadlandsLootProfile::House},
+        {TEXT("HouseEast_Bedroom"), FVector(1860, 1320, 55), EDeadlandsLootProfile::House},
+        {TEXT("HouseEast_Garage"), FVector(1890, 860, 55), EDeadlandsLootProfile::Garage},
+        {TEXT("Market_ShelfWest"), FVector(-1830, -1140, 55), EDeadlandsLootProfile::Store},
+        {TEXT("Market_ShelfEast"), FVector(-1180, -1120, 55), EDeadlandsLootProfile::Store},
+        {TEXT("Market_Storage"), FVector(-1500, -1500, 55), EDeadlandsLootProfile::Store},
+        {TEXT("Market_FirstAid"), FVector(-1850, -1510, 55), EDeadlandsLootProfile::Medical},
+        {TEXT("GasStation_Shop"), FVector(1090, -1170, 55), EDeadlandsLootProfile::Store},
+        {TEXT("GasStation_Storage"), FVector(1730, -1450, 55), EDeadlandsLootProfile::Garage},
+        {TEXT("GasStation_Medical"), FVector(1100, -1520, 55), EDeadlandsLootProfile::Medical},
+        {TEXT("GasStation_Tools"), FVector(1730, -1150, 55), EDeadlandsLootProfile::Garage}
+    };
+    for (const FLootSpot& Spot : Spots)
+    {
+        const FTransform SpawnTransform(GetActorRotation(), GetActorTransform().TransformPosition(Spot.LocalPosition));
+        ADeadlandsContainer* Container = GetWorld()->SpawnActorDeferred<ADeadlandsContainer>(
+            ADeadlandsContainer::StaticClass(), SpawnTransform, this, nullptr,
+            ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if (!Container) continue;
+        Container->ConfigureLoot(FName(Spot.Id), Spot.Profile);
+        Container->FinishSpawning(SpawnTransform);
     }
 }
 
