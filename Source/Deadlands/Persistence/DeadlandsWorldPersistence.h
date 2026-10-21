@@ -2,11 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/DeadlandsItemStack.h"
+#include "Persistence/DeadlandsWorldSaveGame.h"
 
 /** Small server-only save/load API for persistent world objects. */
 class DEADLANDS_API FDeadlandsWorldPersistence
 {
 public:
+    static TMap<FString,FDeadlandsSavedBarricade> LoadBarricades(const UObject* Context);
+    static bool SaveBarricade(const UObject* Context,const FString& Id,const FTransform& Transform,float Health);
+    static bool RemoveBarricade(const UObject* Context,const FString& Id);
     static bool LoadSurvivalState(const UObject* Context, const FString& Key, bool& Backpack, float& Bleeding, float& Infection, int32& Durability);
     static bool SaveSurvivalState(const UObject* Context, const FString& Key, bool Backpack, float Bleeding, float Infection, int32 Durability);
     static bool SaveInventoryAndSurvivalState(const UObject* Context, const FString& Key, const TArray<FDeadlandsItemStack>& Items, bool Backpack, float Bleeding, float Infection, int32 Durability);
